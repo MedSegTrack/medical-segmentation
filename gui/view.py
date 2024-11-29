@@ -6,7 +6,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPalette, QColor
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from gui.guistyles import styles
+from gui.guistyles import LIGHT_MODE_STYLES, DARK_MODE_STYLES
 
 # Constants
 WINDOW_TITLE = "Medical Segmentation"
@@ -79,44 +79,44 @@ class GuiView(QMainWindow):
         self.side_options.setLayout(self.side_options_layout)
 
         self.checkbox_lock_layers = QCheckBox("Lock layers")
-        self.checkbox_lock_layers.setStyleSheet(styles["LIGHT_MODE_CHECKBOX_STYLE"])
         self.side_options.layout().addWidget(self.checkbox_lock_layers)
         self.checkbox_lock_layers.setChecked(False)
 
         self.checkbox_selection_mode = QCheckBox("Selection mode")
-        self.checkbox_selection_mode.setStyleSheet(styles["LIGHT_MODE_CHECKBOX_STYLE"])
         self.side_options.layout().addWidget(self.checkbox_selection_mode)
         self.checkbox_selection_mode.setChecked(False)
 
         self.reset_layers_button = QPushButton("Reset Layers")
-        self.reset_layers_button.setStyleSheet(styles["LIGHT_MODE_BUTTON_STYLE"])
         self.side_options.layout().addWidget(self.reset_layers_button)
-        # Add sliders for slice selection
+        
         self.x_slice_slider = QSlider(Qt.Horizontal)
         self.y_slice_slider = QSlider(Qt.Horizontal)
         self.z_slice_slider = QSlider(Qt.Horizontal)
-        
-        self.x_slice_slider.setStyleSheet(styles["LIGHT_MODE_SLIDER_STYLE"])
-        self.y_slice_slider.setStyleSheet(styles["LIGHT_MODE_SLIDER_STYLE"])
-        self.z_slice_slider.setStyleSheet(styles["LIGHT_MODE_SLIDER_STYLE"])
+
 
         # Create labels for each slider
         self.x_slice_label = QLabel("X:")
+        self.x_slice_label.setFixedWidth(40)
         self.y_slice_label = QLabel("Y:")
+        self.y_slice_label.setFixedWidth(40)
         self.z_slice_label = QLabel("Z:")
+        self.z_slice_label.setFixedWidth(40)
         
         # Create horizontal layouts for each slider and label
         x_layout = QHBoxLayout()
-        x_layout.addWidget(self.x_slice_slider)
         x_layout.addWidget(self.x_slice_label)
+        x_layout.addWidget(self.x_slice_slider)
+
 
         y_layout = QHBoxLayout()
-        y_layout.addWidget(self.y_slice_slider)
         y_layout.addWidget(self.y_slice_label)
+        y_layout.addWidget(self.y_slice_slider)
+
 
         z_layout = QHBoxLayout()
-        z_layout.addWidget(self.z_slice_slider)
         z_layout.addWidget(self.z_slice_label)
+        z_layout.addWidget(self.z_slice_slider)
+
 
         # Add the horizontal layouts to the main layout
         self.side_options_layout.addLayout(x_layout)
@@ -154,7 +154,7 @@ class GuiView(QMainWindow):
         canvas.figure.text(0.5,0.5, "No data", color='white', fontsize=12, ha='center', va='center')
         return canvas
 
-    def update_slice(self, panel, slice_data, slice_index):
+    def update_slice(self, panel, slice_data, slice_index, mask_data=None):
         """
         Update the slice data displayed in a panel.
         
@@ -172,6 +172,8 @@ class GuiView(QMainWindow):
         # Display the slice data if it is not None
         if slice_data is not None:
             ax.imshow(slice_data, cmap="gray")
+            if mask_data is not None:
+                 ax.imshow(mask_data, interpolation='none')
         else:
             ax.text(0.5, 0.5, 'No Data', color='red', fontsize=20, ha='center', va='center')
         ax.axis("off")
@@ -190,55 +192,45 @@ class GuiView(QMainWindow):
         """
         Apply a light mode color scheme to the GUI.
         """
-        palette = self.palette()
-        palette.setColor(QPalette.Window, QColor(255, 255, 255))
-        palette.setColor(QPalette.WindowText, QColor(0, 0, 0))
-        palette.setColor(QPalette.Base, QColor(240, 240, 240))
-        palette.setColor(QPalette.AlternateBase, QColor(255, 255, 255))
-        palette.setColor(QPalette.ToolTipBase, QColor(255, 255, 255))
-        palette.setColor(QPalette.ToolTipText, QColor(0, 0, 0))
-        palette.setColor(QPalette.Text, QColor(0, 0, 0))
-        palette.setColor(QPalette.Button, QColor(240, 240, 240))
-        palette.setColor(QPalette.ButtonText, QColor(0, 0, 0))
-        palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
-        palette.setColor(QPalette.Highlight, QColor(0, 120, 215))
-        palette.setColor(QPalette.HighlightedText, QColor(255, 255, 255))
-        self.checkbox_lock_layers.setStyleSheet(styles["LIGHT_MODE_CHECKBOX_STYLE"])
-        self.checkbox_selection_mode.setStyleSheet(styles["LIGHT_MODE_CHECKBOX_STYLE"])
-        self.reset_layers_button.setStyleSheet(styles["LIGHT_MODE_BUTTON_STYLE"])
-        self.setPalette(palette)
-        self.menu_bar.setStyleSheet(styles["LIGHT_MODE_MENU_BAR_STYLE"])
+        self.apply_palette(LIGHT_MODE_STYLES["PALETTE"])
+        stylesheet = (
+            LIGHT_MODE_STYLES["CHECKBOX_STYLE"] +
+            LIGHT_MODE_STYLES["BUTTON_STYLE"] +
+            LIGHT_MODE_STYLES["MENU_BAR_STYLE"] +
+            LIGHT_MODE_STYLES["SLIDER_STYLE"] +
+            LIGHT_MODE_STYLES["LABEL_STYLE"]
+        )
+        self.setStyleSheet(stylesheet)
         self.side_options.setStyleSheet("background-color: #f0f0f0; color: black;")
-        self.x_slice_slider.setStyleSheet(styles["LIGHT_MODE_SLIDER_STYLE"])
-        self.y_slice_slider.setStyleSheet(styles["LIGHT_MODE_SLIDER_STYLE"])
-        self.z_slice_slider.setStyleSheet(styles["LIGHT_MODE_SLIDER_STYLE"])
+        self.reset_layers_button.setStyleSheet(LIGHT_MODE_STYLES["BUTTON_STYLE"])
+
 
     def apply_dark_mode(self):
         """
         Apply a dark mode color scheme to the GUI.
         """
-        palette = self.palette()
-        palette.setColor(QPalette.Window, QColor(53, 53, 53))
-        palette.setColor(QPalette.WindowText, QColor(255, 255, 255))
-        palette.setColor(QPalette.Base, QColor(42, 42, 42))
-        palette.setColor(QPalette.AlternateBase, QColor(66, 66, 66))
-        palette.setColor(QPalette.ToolTipBase, QColor(255, 255, 255))
-        palette.setColor(QPalette.ToolTipText, QColor(255, 255, 255))
-        palette.setColor(QPalette.Text, QColor(255, 255, 255))
-        palette.setColor(QPalette.Button, QColor(53, 53, 53))
-        palette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
-        palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
-        palette.setColor(QPalette.Highlight, QColor(142, 45, 197))
-        palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
-        self.checkbox_lock_layers.setStyleSheet(styles["DARK_MODE_CHECKBOX_STYLE"])
-        self.checkbox_selection_mode.setStyleSheet(styles["DARK_MODE_CHECKBOX_STYLE"])
-        self.reset_layers_button.setStyleSheet(styles["DARK_MODE_BUTTON_STYLE"])
-        self.setPalette(palette)
-        self.menu_bar.setStyleSheet(styles["DARK_MODE_MENU_BAR_STYLE"])
+        self.apply_palette(DARK_MODE_STYLES["PALETTE"])
+        stylesheet = (
+            DARK_MODE_STYLES["CHECKBOX_STYLE"] +
+            DARK_MODE_STYLES["BUTTON_STYLE"] +
+            DARK_MODE_STYLES["MENU_BAR_STYLE"] +
+            DARK_MODE_STYLES["SLIDER_STYLE"] +
+            DARK_MODE_STYLES["LABEL_STYLE"]
+        )
+        self.setStyleSheet(stylesheet)
         self.side_options.setStyleSheet("background-color: #353535; color: white;")
-        self.x_slice_slider.setStyleSheet(styles["DARK_MODE_SLIDER_STYLE"])
-        self.y_slice_slider.setStyleSheet(styles["DARK_MODE_SLIDER_STYLE"])
-        self.z_slice_slider.setStyleSheet(styles["DARK_MODE_SLIDER_STYLE"])
+        self.reset_layers_button.setStyleSheet(DARK_MODE_STYLES["BUTTON_STYLE"])
 
 
+    def apply_palette(self, palette_config):
+        """
+        Apply a color palette to the GUI.
+        
+        Args:
+            palette_config (dict): A dictionary with the color palette configuration.
+        """
+        palette = self.palette()
+        for role, color in palette_config.items():
+            palette.setColor(getattr(QPalette, role), QColor(*color))
+        self.setPalette(palette)
 

@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import QFileDialog
 from PyQt5.QtWidgets import QAction, QActionGroup
 from gui.view import MAIN_SPLITTER_SIZES, LEFT_SPLITTER_SIZES, RIGHT_SPLITTER_SIZES
+from gui.filepopup import LoadFileDialog
 
 class GuiController:
     """
@@ -225,20 +226,30 @@ class GuiController:
 
     def load_nifti_file(self):
         """
-        Open a file dialog to load a NIfTI file and update the view.
+        Open a dialog to load a NIfTI file and optionally a NIfTI mask file.
+        Update the view with the loaded data.
 
         Raises:
-            Exception: If an error occurs while loading the NIfTI file.
+            Exception: If an error occurs while loading the NIfTI file or mask.
         """
-        file_path, _ = QFileDialog.getOpenFileName(self.view, "Open NIfTI File", "", "NIfTI Files (*.nii *.nii.gz)")
-        if file_path:
+        # Create the dialog for loading files
+        dialog = LoadFileDialog(self.view.dark_mode_action.isChecked())
+        if dialog.exec_():
             try:
-                self.file_handler.load_nifti_file(file_path)
-                self.update_views(self.file_handler.current_modality_channel)
-                self.update_modality_menu()
-                self.initialize_sliders()
+                # Load the primary NIfTI file
+                if hasattr(dialog, 'nifti_path'):
+                    self.file_handler.load_nifti_file(dialog.nifti_path)
+                    self.update_views(self.file_handler.current_modality_channel)
+                    self.update_modality_menu()
+                    self.initialize_sliders()
+
+                # Load the optional mask file if the checkbox is checked
+                if dialog.checkbox.isChecked() and hasattr(dialog, 'mask_path'):
+                    self.file_handler.load_nifti_mask(dialog.mask_path)
+
             except Exception as e:
-                self.view.display_error(f"Failed to load NIfTI file: {str(e)}")
+                self.view.display_error(f"Failed to load files: {str(e)}")
+
 
     def update_views(self, channel=0):
         """
@@ -247,18 +258,21 @@ class GuiController:
         Args:
             channel (int): The modality channel index.
         """
-        x_slice = self.file_handler.get_slice("x", self.file_handler.current_slice["x"], channel)  
+        x_slice = self.file_handler.get_slice("x", self.file_handler.current_slice["x"], channel)
+        x_mask = self.file_handler.get_mask_slice("x", self.file_handler.current_slice["x"]) if self.file_handler.nii_mask is not None else None
         if x_slice is not None:
-            self.view.update_slice(self.view.panel1, x_slice, self.file_handler.get_current_slice_index("x"))
+            self.view.update_slice(self.view.panel1, x_slice, self.file_handler.get_current_slice_index("x"), x_mask)
 
         y_slice = self.file_handler.get_slice("y", self.file_handler.current_slice["y"], channel)
+        y_mask = self.file_handler.get_mask_slice("y", self.file_handler.current_slice["y"]) if self.file_handler.nii_mask is not None else None
         if y_slice is not None:
-            self.view.update_slice(self.view.panel2, y_slice, self.file_handler.get_current_slice_index("y"))
+            self.view.update_slice(self.view.panel2, y_slice, self.file_handler.get_current_slice_index("y"), y_mask)
 
         z_slice = self.file_handler.get_slice("z", self.file_handler.current_slice["z"], channel)
+        z_mask = self.file_handler.get_mask_slice("z", self.file_handler.current_slice["z"]) if self.file_handler.nii_mask is not None else None
         if z_slice is not None:
-            self.view.update_slice(self.view.panel4, z_slice, self.file_handler.get_current_slice_index("z"))
-            
+            self.view.update_slice(self.view.panel4, z_slice, self.file_handler.get_current_slice_index("z"), z_mask)
+
     def update_view(self, dimension, channel=0):
         """
         Update the view for a specific dimension and channel.
@@ -269,16 +283,19 @@ class GuiController:
         """
         if dimension == "x":
             x_slice = self.file_handler.get_slice("x", self.file_handler.current_slice["x"], channel)
+            x_mask = self.file_handler.get_mask_slice("x", self.file_handler.current_slice["x"]) if self.file_handler.nii_mask is not None else None
             if x_slice is not None:
-                self.view.update_slice(self.view.panel1, x_slice, self.file_handler.get_current_slice_index("x"))
+                self.view.update_slice(self.view.panel1, x_slice, self.file_handler.get_current_slice_index("x"), x_mask)
         elif dimension == "y":
             y_slice = self.file_handler.get_slice("y", self.file_handler.current_slice["y"], channel)
+            y_mask = self.file_handler.get_mask_slice("y", self.file_handler.current_slice["y"]) if self.file_handler.nii_mask is not None else None
             if y_slice is not None:
-                self.view.update_slice(self.view.panel2, y_slice, self.file_handler.get_current_slice_index("y"))
+                self.view.update_slice(self.view.panel2, y_slice, self.file_handler.get_current_slice_index("y"), y_mask)
         elif dimension == "z":
             z_slice = self.file_handler.get_slice("z", self.file_handler.current_slice["z"], channel)
+            z_mask = self.file_handler.get_mask_slice("z", self.file_handler.current_slice["z"]) if self.file_handler.nii_mask is not None else None
             if z_slice is not None:
-                self.view.update_slice(self.view.panel4, z_slice, self.file_handler.get_current_slice_index("z"))
+                self.view.update_slice(self.view.panel4, z_slice, self.file_handler.get_current_slice_index("z"), z_mask)
 
     def update_modality_menu(self):
         """
