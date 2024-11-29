@@ -27,7 +27,7 @@ styles = {
         background-color: #5A5A5A;
         color: #FFFFFF;
         border: 2px solid #5A5A5A;
-        padding: 8px;
+        padding: 1px;
         font-size: 12px;
         border-radius: 0px; 
     }
@@ -72,7 +72,7 @@ styles = {
         background-color: #3A3A3A; 
         color: #FFFFFF;
         border: 2px solid #B0B0B0;
-        padding: 8px;
+        padding: 1px;
         font-size: 12px;
         border-radius: 0px; 
     }
@@ -124,5 +124,130 @@ QPushButton:pressed {
     QMenuBar::item::pressed {
         background-color: #b0b0b0;
     }
+    """,
+    
+     "LIGHT_MODE_SLIDER_STYLE": """
+    QSlider::groove:horizontal {
+        border: 1px solid #7A7A7A;
+        background: #FFFFFF;
+        height: 8px;
+        border-radius: 4px;
+    }
+
+    QSlider::handle:horizontal {
+        background: #5A5A5A;
+        border: 2px solid #B0B0B0;
+        width: 16px;
+        height: 16px;
+        border-radius: 8px;
+        margin: -4px 0;
+    }
+
+    QSlider::handle:horizontal:hover {
+        background: #4A4A4A;
+        border: 2px solid #4A4A4A;
+    }
+
+    QSlider::handle:horizontal:pressed {
+        background: #3A3A3A;
+        border: 2px solid #3A3A3A;
+    }
+
+    QSlider::sub-page:horizontal {
+        background: #7A7A7A;
+        border: 1px solid #7A7A7A;
+        height: 8px;
+        border-radius: 4px;
+    }
+
+    QSlider::add-page:horizontal {
+        background: #FFFFFF;
+        border: 1px solid #7A7A7A;
+        height: 8px;
+        border-radius: 4px;
+    }
+
+    QSlider::groove:horizontal:disabled {
+        background: #E0E0E0;
+        border: 1px solid #C0C0C0;
+    }
+
+    QSlider::handle:horizontal:disabled {
+        background: #D0D0D0;
+        border: 2px solid #C0C0C0;
+    }
+
+    QSlider::sub-page:horizontal:disabled {
+        background: #C0C0C0;
+        border: 1px solid #C0C0C0;
+    }
+
+    QSlider::add-page:horizontal:disabled {
+        background: #E0E0E0;
+        border: 1px solid #C0C0C0;
+    }
+    """,
+
+"DARK_MODE_SLIDER_STYLE": """
+    QSlider::groove:horizontal {
+        border: 1px solid #B0B0B0;
+        background: #5A5A5A;
+        height: 8px;
+        border-radius: 4px;
+    }
+
+    QSlider::handle:horizontal {
+        background: #3A3A3A;
+        border: 2px solid #B0B0B0;
+        width: 16px;
+        height: 16px;
+        border-radius: 8px;
+        margin: -4px 0;
+    }
+
+    QSlider::handle:horizontal:hover {
+        background: #2A2A2A;
+        border: 2px solid #2A2A2A;
+    }
+
+    QSlider::handle:horizontal:pressed {
+        background: #1A1A1A;
+        border: 2px solid #1A1A1A;
+    }
+
+    QSlider::sub-page:horizontal {
+        background: #B0B0B0;
+        border: 1px solid #B0B0B0;
+        height: 8px;
+        border-radius: 4px;
+    }
+
+    QSlider::add-page:horizontal {
+        background: #5A5A5A;
+        border: 1px solid #B0B0B0;
+        height: 8px;
+        border-radius: 4px;
+    }
+
+    QSlider::groove:horizontal:disabled {
+        background: #4A4A4A;
+        border: 1px solid #3A3A3A;
+    }
+
+    QSlider::handle:horizontal:disabled {
+        background: #2A2A2A;
+        border: 2px solid #3A3A3A;
+    }
+
+    QSlider::sub-page:horizontal:disabled {
+        background: #3A3A3A;
+        border: 1px solid #3A3A3A;
+    }
+
+    QSlider::add-page:horizontal:disabled {
+        background: #4A4A4A;
+        border: 1px solid #3A3A3A;
+    }
     """
+
 }

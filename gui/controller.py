@@ -18,6 +18,7 @@ class GuiController:
         self.view = view
         self.is_layers_locked = False
         self.expanded_panel = None
+        self.is_updating_slider = False
 
         # Connect menu actions
         self.view.exit_action.triggered.connect(self.view.close)
@@ -41,8 +42,51 @@ class GuiController:
  
         self.view.reset_layers_button.clicked.connect(self.reset_layers)
 
+        self.view.x_slice_slider.valueChanged.connect(lambda value: self.on_slider_value_changed("x", value))
+        self.view.y_slice_slider.valueChanged.connect(lambda value: self.on_slider_value_changed("y", value))
+        self.view.z_slice_slider.valueChanged.connect(lambda value: self.on_slider_value_changed("z", value))
+
+        self.view.x_slice_slider.setEnabled(False)
+        self.view.y_slice_slider.setEnabled(False)
+        self.view.z_slice_slider.setEnabled(False)
+        
         #TODO
         # Connect checkbox_selection_mod to appropriate function
+
+    def on_slider_value_changed(self, dimension, value):
+        """
+        Handles the slider value change event and updates the current slice.
+        """
+        if not self.is_updating_slider:
+            self.is_updating_slider = True  # Prevent recursion
+
+            self.file_handler.current_slice[dimension] = value
+            self.update_view(dimension, self.file_handler.current_modality_channel)
+            if dimension == "x":
+                self.view.x_slice_label.setText(f"X: {value}")
+            elif dimension == "y":
+                self.view.y_slice_label.setText(f"Y: {value}")
+            elif dimension == "z":
+                self.view.z_slice_label.setText(f"Z: {value}")
+            
+            self.is_updating_slider = False  # Re-enable event handling
+
+    def initialize_sliders(self):
+        self.view.x_slice_slider.setMinimum(0)
+        self.view.x_slice_slider.setMaximum(self.file_handler.nii_data.shape[0] - 1)
+        self.view.x_slice_slider.setValue(self.file_handler.current_slice["x"])
+
+        self.view.y_slice_slider.setMinimum(0)
+        self.view.y_slice_slider.setMaximum(self.file_handler.nii_data.shape[1] - 1)
+        self.view.y_slice_slider.setValue(self.file_handler.current_slice["y"])
+
+        self.view.z_slice_slider.setMinimum(0)
+        self.view.z_slice_slider.setMaximum(self.file_handler.nii_data.shape[2] - 1)
+        self.view.z_slice_slider.setValue(self.file_handler.current_slice["z"])
+
+        self.view.x_slice_slider.setEnabled(True)
+        self.view.y_slice_slider.setEnabled(True)
+        self.view.z_slice_slider.setEnabled(True)
 
     def lock_layers(self):
         """
@@ -61,6 +105,8 @@ class GuiController:
             dimension = self.expanded_panel[-1]
             self.file_handler.current_slice[dimension] = self.file_handler.nii_data.shape[{"x": 0, "y": 1, "z": 2}[dimension]] // 2
             self.update_view(dimension, self.file_handler.current_modality_channel)
+        if self.file_handler.nii_data is not None:
+            self.initialize_sliders()
 
     def scroll_slice(self, dimension, delta_y):
         """
@@ -71,6 +117,9 @@ class GuiController:
             dimension (str): The dimension to scroll ("x", "y", or "z").
             delta_y (int): The scroll delta value.
         """
+        if self.is_updating_slider:  # Avoid triggering value change event
+            return
+        
         if self.file_handler.nii_data is not None and self.is_layers_locked == True and self.expanded_panel is None:
             step = 1
             if delta_y > 0:
@@ -84,6 +133,14 @@ class GuiController:
                                                         self.file_handler.nii_data.shape[{"x": 0, "y": 1, "z": 2}[dimension]] - 1)
             # Update the view to show the new slice
             self.update_views(self.file_handler.current_modality_channel)
+            self.is_updating_slider = True
+            self.view.x_slice_slider.setValue(self.file_handler.current_slice["x"])
+            self.view.y_slice_slider.setValue(self.file_handler.current_slice["y"])
+            self.view.z_slice_slider.setValue(self.file_handler.current_slice["z"])
+            self.view.x_slice_label.setText(f"X: {self.file_handler.current_slice['x']}")
+            self.view.y_slice_label.setText(f"Y: {self.file_handler.current_slice['y']}")
+            self.view.z_slice_label.setText(f"Z: {self.file_handler.current_slice['z']}")
+            self.is_updating_slider = False
         elif self.file_handler.nii_data is not None:
             step = 1
             if delta_y > 0:
@@ -95,6 +152,17 @@ class GuiController:
                                                         self.file_handler.nii_data.shape[{"x": 0, "y": 1, "z": 2}[dimension]] - 1)
             # Update the view to show the new slice
             self.update_view(dimension, self.file_handler.current_modality_channel)
+            self.is_updating_slider = True
+            if dimension == "x":
+                self.view.x_slice_slider.setValue(self.file_handler.current_slice["x"])
+                self.view.x_slice_label.setText(f"X: {self.file_handler.current_slice['x']}")
+            elif dimension == "y":
+                self.view.y_slice_slider.setValue(self.file_handler.current_slice["y"])
+                self.view.y_slice_label.setText(f"Y: {self.file_handler.current_slice['y']}")
+            elif dimension == "z":
+                self.view.z_slice_slider.setValue(self.file_handler.current_slice["z"])
+                self.view.z_slice_label.setText(f"Z: {self.file_handler.current_slice['z']}")
+            self.is_updating_slider = False
 
     def toggle_dark_mode(self):
         """
@@ -119,20 +187,39 @@ class GuiController:
             self.view.right_splitter.setSizes(RIGHT_SPLITTER_SIZES)
             self.reset_expanded_panel()
             self.update_views(self.file_handler.current_modality_channel)
+            self.view.x_slice_slider.setEnabled(True)
+            self.view.y_slice_slider.setEnabled(True)
+            self.view.z_slice_slider.setEnabled(True)
         else:
             # Expand the selected panel
             if panel_name == "Panel1-x":
                 self.view.main_splitter.setSizes([800, 0, 200])
                 self.view.left_splitter.setSizes([600, 0])
+                if self.file_handler.nii_data is not None:
+                    self.view.x_slice_slider.setEnabled(True)
+                    self.view.y_slice_slider.setEnabled(False)
+                    self.view.z_slice_slider.setEnabled(False)
             elif panel_name == "Panel4-z":
                 self.view.main_splitter.setSizes([800, 0, 200])
                 self.view.left_splitter.setSizes([0, 600])
+                if self.file_handler.nii_data is not None:
+                    self.view.x_slice_slider.setEnabled(False)
+                    self.view.y_slice_slider.setEnabled(False)
+                    self.view.z_slice_slider.setEnabled(True)
             elif panel_name == "Panel2-y":
                 self.view.main_splitter.setSizes([0, 800, 200])
                 self.view.right_splitter.setSizes([600, 0])
+                if self.file_handler.nii_data is not None:
+                    self.view.x_slice_slider.setEnabled(False)
+                    self.view.y_slice_slider.setEnabled(True)
+                    self.view.z_slice_slider.setEnabled(False)
             elif panel_name == "Panel3":
                 self.view.main_splitter.setSizes([0, 800, 200])
                 self.view.right_splitter.setSizes([0, 600])
+                if self.file_handler.nii_data is not None:
+                    self.view.x_slice_slider.setEnabled(False)
+                    self.view.y_slice_slider.setEnabled(False)
+                    self.view.z_slice_slider.setEnabled(False)
             self.set_expanded_panel(panel_name)
 
     def load_nifti_file(self):
@@ -148,6 +235,7 @@ class GuiController:
                 self.file_handler.load_nifti_file(file_path)
                 self.update_views(self.file_handler.current_modality_channel)
                 self.update_modality_menu()
+                self.initialize_sliders()
             except Exception as e:
                 self.view.display_error(f"Failed to load NIfTI file: {str(e)}")
 
@@ -235,3 +323,4 @@ class GuiController:
         Reset the expanded panel to None.
         """
         self.expanded_panel = None
+        

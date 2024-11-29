@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QSplitter, QMessageBox, QPushButton, QActionGroup, QAction, QCheckBox, QFileDialog
+    QLabel, QMainWindow, QWidget, QVBoxLayout, QSplitter, QMessageBox, QPushButton, QHBoxLayout, QAction, QCheckBox, QSlider
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPalette, QColor
@@ -87,10 +87,41 @@ class GuiView(QMainWindow):
         self.checkbox_selection_mode.setStyleSheet(styles["LIGHT_MODE_CHECKBOX_STYLE"])
         self.side_options.layout().addWidget(self.checkbox_selection_mode)
         self.checkbox_selection_mode.setChecked(False)
-        
+
         self.reset_layers_button = QPushButton("Reset Layers")
         self.reset_layers_button.setStyleSheet(styles["LIGHT_MODE_BUTTON_STYLE"])
         self.side_options.layout().addWidget(self.reset_layers_button)
+        # Add sliders for slice selection
+        self.x_slice_slider = QSlider(Qt.Horizontal)
+        self.y_slice_slider = QSlider(Qt.Horizontal)
+        self.z_slice_slider = QSlider(Qt.Horizontal)
+        
+        self.x_slice_slider.setStyleSheet(styles["LIGHT_MODE_SLIDER_STYLE"])
+        self.y_slice_slider.setStyleSheet(styles["LIGHT_MODE_SLIDER_STYLE"])
+        self.z_slice_slider.setStyleSheet(styles["LIGHT_MODE_SLIDER_STYLE"])
+
+        # Create labels for each slider
+        self.x_slice_label = QLabel("X:")
+        self.y_slice_label = QLabel("Y:")
+        self.z_slice_label = QLabel("Z:")
+        
+        # Create horizontal layouts for each slider and label
+        x_layout = QHBoxLayout()
+        x_layout.addWidget(self.x_slice_slider)
+        x_layout.addWidget(self.x_slice_label)
+
+        y_layout = QHBoxLayout()
+        y_layout.addWidget(self.y_slice_slider)
+        y_layout.addWidget(self.y_slice_label)
+
+        z_layout = QHBoxLayout()
+        z_layout.addWidget(self.z_slice_slider)
+        z_layout.addWidget(self.z_slice_label)
+
+        # Add the horizontal layouts to the main layout
+        self.side_options_layout.addLayout(x_layout)
+        self.side_options_layout.addLayout(y_layout)
+        self.side_options_layout.addLayout(z_layout)
 
         self.side_options_layout.addStretch()
 
@@ -178,6 +209,9 @@ class GuiView(QMainWindow):
         self.setPalette(palette)
         self.menu_bar.setStyleSheet(styles["LIGHT_MODE_MENU_BAR_STYLE"])
         self.side_options.setStyleSheet("background-color: #f0f0f0; color: black;")
+        self.x_slice_slider.setStyleSheet(styles["LIGHT_MODE_SLIDER_STYLE"])
+        self.y_slice_slider.setStyleSheet(styles["LIGHT_MODE_SLIDER_STYLE"])
+        self.z_slice_slider.setStyleSheet(styles["LIGHT_MODE_SLIDER_STYLE"])
 
     def apply_dark_mode(self):
         """
@@ -202,6 +236,9 @@ class GuiView(QMainWindow):
         self.setPalette(palette)
         self.menu_bar.setStyleSheet(styles["DARK_MODE_MENU_BAR_STYLE"])
         self.side_options.setStyleSheet("background-color: #353535; color: white;")
+        self.x_slice_slider.setStyleSheet(styles["DARK_MODE_SLIDER_STYLE"])
+        self.y_slice_slider.setStyleSheet(styles["DARK_MODE_SLIDER_STYLE"])
+        self.z_slice_slider.setStyleSheet(styles["DARK_MODE_SLIDER_STYLE"])
 
 
 
