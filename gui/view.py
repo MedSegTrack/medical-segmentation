@@ -6,6 +6,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPalette, QColor
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from gui.guistyles import styles
 
 # Constants
 WINDOW_TITLE = "Medical Segmentation"
@@ -14,101 +15,6 @@ WINDOW_HEIGHT = 600
 MAIN_SPLITTER_SIZES = [400, 400, 200]
 LEFT_SPLITTER_SIZES = [300, 300]
 RIGHT_SPLITTER_SIZES = [300, 300]
-# Stylesheet for checkboxes and buttons in light mode
-LIGHT_MODE_CHECKBOX_STYLE = """
-QCheckBox::indicator {
-    width: 10px;
-    height: 10px;
-    border: 2px solid #7A7A7A;
-    background-color: #FFFFFF;
-    border-radius: 0px; 
-}
-
-QCheckBox::indicator:checked {
-    background-color: #FFFFFF;
-    border: 2px solid #7A7A7A; 
-    image: url('assets/tick_icon_light.png'); 
-}
-
-QCheckBox {
-    font-size: 14px;
-    color: #5A5A5A;
-    padding: 5px;
-}
-"""
-
-LIGHT_MODE_BUTTON_STYLE = """
-QPushButton {
-    background-color: #5A5A5A;
-    color: #FFFFFF;
-    border: 2px solid #5A5A5A;
-    padding: 8px;
-    font-size: 12px;
-    border-radius: 0px; 
-}
-
-QPushButton:hover {
-    background-color: #4A4A4A; 
-    color: #FFFFFF;
-    border: 2px solid #4A4A4A;
-}
-
-QPushButton:pressed {
-    background-color: #3A3A3A; 
-    color: #FFFFFF;
-    border: 2px solid #3A3A3A;
-}
-"""
-
-# Stylesheet for checkboxes and buttons in dark mode
-DARK_MODE_CHECKBOX_STYLE = """
-QCheckBox::indicator {
-    width: 10px;
-    height: 10px;
-    border: 2px solid #B0B0B0; 
-    background-color: #5A5A5A;
-    border-radius: 0px; 
-}
-
-QCheckBox::indicator:checked {
-    background-color: #5A5A5A;
-    border: 2px solid #B0B0B0; 
-    image: url('assets/tick_icon_dark.png'); 
-}
-
-QCheckBox {
-    font-size: 14px;
-    color: #FFFFFF;
-    padding: 5px;
-}
-"""
-
-DARK_MODE_BUTTON_STYLE = """
-QPushButton {
-    background-color: #3A3A3A; 
-    color: #FFFFFF;
-    border: 2px solid #B0B0B0;
-    padding: 8px;
-    font-size: 12px;
-    border-radius: 0px; 
-}
-
-QPushButton:hover {
-    background-color: #2A2A2A; 
-    color: #FFFFFF;
-    border: 2px solid #B0B0B0;
-}
-
-QPushButton:pressed {
-    background-color: #1A1A1A; 
-    color: #FFFFFF;
-    border: 2px solid #B0B0B0;
-}
-"""
-
-
-
-
 
 class GuiView(QMainWindow):
     """
@@ -173,17 +79,17 @@ class GuiView(QMainWindow):
         self.side_options.setLayout(self.side_options_layout)
 
         self.checkbox_lock_layers = QCheckBox("Lock layers")
-        self.checkbox_lock_layers.setStyleSheet(LIGHT_MODE_CHECKBOX_STYLE)
+        self.checkbox_lock_layers.setStyleSheet(styles["LIGHT_MODE_CHECKBOX_STYLE"])
         self.side_options.layout().addWidget(self.checkbox_lock_layers)
         self.checkbox_lock_layers.setChecked(False)
 
         self.checkbox_selection_mode = QCheckBox("Selection mode")
-        self.checkbox_selection_mode.setStyleSheet(LIGHT_MODE_CHECKBOX_STYLE)
+        self.checkbox_selection_mode.setStyleSheet(styles["LIGHT_MODE_CHECKBOX_STYLE"])
         self.side_options.layout().addWidget(self.checkbox_selection_mode)
         self.checkbox_selection_mode.setChecked(False)
         
         self.reset_layers_button = QPushButton("Reset Layers")
-        self.reset_layers_button.setStyleSheet(LIGHT_MODE_BUTTON_STYLE)
+        self.reset_layers_button.setStyleSheet(styles["LIGHT_MODE_BUTTON_STYLE"])
         self.side_options.layout().addWidget(self.reset_layers_button)
 
         self.side_options_layout.addStretch()
@@ -266,22 +172,11 @@ class GuiView(QMainWindow):
         palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
         palette.setColor(QPalette.Highlight, QColor(0, 120, 215))
         palette.setColor(QPalette.HighlightedText, QColor(255, 255, 255))
-        self.checkbox_lock_layers.setStyleSheet(LIGHT_MODE_CHECKBOX_STYLE)
-        self.checkbox_selection_mode.setStyleSheet(LIGHT_MODE_CHECKBOX_STYLE)
-        self.reset_layers_button.setStyleSheet(LIGHT_MODE_BUTTON_STYLE)
+        self.checkbox_lock_layers.setStyleSheet(styles["LIGHT_MODE_CHECKBOX_STYLE"])
+        self.checkbox_selection_mode.setStyleSheet(styles["LIGHT_MODE_CHECKBOX_STYLE"])
+        self.reset_layers_button.setStyleSheet(styles["LIGHT_MODE_BUTTON_STYLE"])
         self.setPalette(palette)
-        self.menu_bar.setStyleSheet("""
-            QMenuBar {
-                background-color: #f0f0f0; 
-                color: black;
-            }
-            QMenuBar::item::selected {
-                background-color: #d0d0d0;
-            }
-            QMenuBar::item::pressed {
-                background-color: #b0b0b0;
-            }
-        """)
+        self.menu_bar.setStyleSheet(styles["LIGHT_MODE_MENU_BAR_STYLE"])
         self.side_options.setStyleSheet("background-color: #f0f0f0; color: black;")
 
     def apply_dark_mode(self):
@@ -301,32 +196,11 @@ class GuiView(QMainWindow):
         palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
         palette.setColor(QPalette.Highlight, QColor(142, 45, 197))
         palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
-        self.checkbox_lock_layers.setStyleSheet(DARK_MODE_CHECKBOX_STYLE)
-        self.checkbox_selection_mode.setStyleSheet(DARK_MODE_CHECKBOX_STYLE)
-        self.reset_layers_button.setStyleSheet(DARK_MODE_BUTTON_STYLE)
+        self.checkbox_lock_layers.setStyleSheet(styles["DARK_MODE_CHECKBOX_STYLE"])
+        self.checkbox_selection_mode.setStyleSheet(styles["DARK_MODE_CHECKBOX_STYLE"])
+        self.reset_layers_button.setStyleSheet(styles["DARK_MODE_BUTTON_STYLE"])
         self.setPalette(palette)
-        self.menu_bar.setStyleSheet("""
-            QMenuBar {
-                background-color: #353535; 
-                color: white;
-            }
-            QMenuBar::item::selected {
-                background-color: #454545;
-            }
-            QMenuBar::item::pressed {
-                background-color: #555555;
-            }
-            QMenu {
-                background-color: #353535;
-                color: white;
-            }
-            QMenu::item::selected {
-                background-color: #454545;
-            }
-            QMenu::item::pressed {
-                background-color: #555555;
-            }
-        """)
+        self.menu_bar.setStyleSheet(styles["DARK_MODE_MENU_BAR_STYLE"])
         self.side_options.setStyleSheet("background-color: #353535; color: white;")
 
 
