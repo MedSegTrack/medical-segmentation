@@ -178,6 +178,9 @@ class GuiController:
         Args:
             panel_name (str): The name of the panel to toggle.
         """
+        if self.file_handler.nii_data is None:
+            return
+        
         if self.expanded_panel == panel_name:
             # Reset to default layout
             self.view.main_splitter.setSizes(MAIN_SPLITTER_SIZES)
