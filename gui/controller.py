@@ -123,14 +123,12 @@ class GuiController:
         if self.file_handler.nii_data is not None and self.is_layers_locked == True and self.expanded_panel is None:
             step = 1
             if delta_y > 0:
-
                 for dim in ["x", "y", "z"]:
                     self.file_handler.current_slice[dim] = max(self.file_handler.current_slice[dim] - step, 0)
             else:
-                # Scroll down: move slices in all dimensions
                 for dim in ["x", "y", "z"]:
                     self.file_handler.current_slice[dim] = min(self.file_handler.current_slice[dim] + step,
-                                                        self.file_handler.nii_data.shape[{"x": 0, "y": 1, "z": 2}[dimension]] - 1)
+                                                        self.file_handler.nii_data.shape[{"x": 0, "y": 1, "z": 2}[dim]] - 1)
             # Update the view to show the new slice
             self.update_views(self.file_handler.current_modality_channel)
             self.is_updating_slider = True
