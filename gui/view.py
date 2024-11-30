@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtWidgets import (
-    QLabel, QMainWindow, QWidget, QVBoxLayout, QSplitter, QMessageBox, QPushButton, QHBoxLayout, QAction, QCheckBox, QSlider
+    QLabel, QMainWindow, QWidget, QVBoxLayout, QSplitter, QMessageBox, QPushButton, QHBoxLayout, QAction, QCheckBox, QSlider, QListWidget
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPalette, QColor
@@ -125,6 +125,13 @@ class GuiView(QMainWindow):
         self.side_options_layout.addLayout(y_layout)
         self.side_options_layout.addLayout(z_layout)
 
+        self.reset_selection_button = QPushButton("Reset Selection")
+        self.side_options_layout.addWidget(self.reset_selection_button)
+
+        # Create the list view
+        self.list_view = QListWidget()
+        self.side_options_layout.addWidget(self.list_view)
+
         self.side_options_layout.addStretch()
 
         self.left_splitter.addWidget(self.panel1)
@@ -156,28 +163,52 @@ class GuiView(QMainWindow):
         canvas.figure.text(0.5,0.5, "No data", color='white', fontsize=12, ha='center', va='center')
         return canvas
 
-    def update_slice(self, panel, slice_data, slice_index, mask_data=None):
+    def update_slice(self, panel, slice_data, slice_index, mask_data=None, selection_list=None):
         """
         Update the slice data displayed in a panel.
-        
+
         Args:
             panel (FigureCanvas): The panel to update.
             slice_data (np.ndarray): The slice data to display.
             slice_index (int): The slice index.
+            mask_data (np.ndarray, optional): The mask data to overlay. Defaults to None.
+            selection_list (list, optional): The list of selected points. Defaults to None.
         """
         canvas = panel
-        #clear panel text
+        # Clear panel text
         canvas.figure.texts = [canvas.figure.texts[0]]
         panel.figure.text(0.95, 0.05, f"Slice: {slice_index}", color="white", fontsize=12, ha='right', va='bottom')
+
         ax = canvas.figure.gca()
         ax.clear()
+
         # Display the slice data if it is not None
         if slice_data is not None:
-            ax.imshow(slice_data, cmap="gray")
+            # Set the extent to match the pixel dimensions of the slice
+            height, width = slice_data.shape
+            extent = (0, width, height, 0)
+            # Display the slice
+            ax.imshow(slice_data, cmap="gray", aspect='equal', extent=extent)
+
+            # Overlay the mask, if provided
             if mask_data is not None:
-                 ax.imshow(mask_data)
+                ax.imshow(mask_data, alpha=0.5, aspect='equal', extent=extent)
+
+            # Overlay the selected points, if any
+            if selection_list is not None:
+                for dimension, slice_number, x, y, t, in selection_list:
+                    if (panel == self.panel1 and dimension == "x") or \
+                    (panel == self.panel2 and dimension == "y") or \
+                    (panel == self.panel4 and dimension == "z"):
+                        if slice_number == slice_index:
+                            if t == "P":
+                                ax.plot(x, height-y, 'go')
+                            else:
+                                ax.plot(x, height-y, 'ro')
         else:
+            # Display "No Data" message if slice_data is None
             ax.text(0.5, 0.5, 'No Data', color='red', fontsize=20, ha='center', va='center')
+
         ax.axis("off")
         canvas.draw()
 
@@ -205,6 +236,7 @@ class GuiView(QMainWindow):
         self.setStyleSheet(stylesheet)
         self.side_options.setStyleSheet("background-color: #f0f0f0; color: black;")
         self.reset_layers_button.setStyleSheet(LIGHT_MODE_STYLES["BUTTON_STYLE"])
+        self.reset_selection_button.setStyleSheet(LIGHT_MODE_STYLES["BUTTON_STYLE"])
 
     def apply_dark_mode(self):
         """
@@ -221,6 +253,7 @@ class GuiView(QMainWindow):
         self.setStyleSheet(stylesheet)
         self.side_options.setStyleSheet("background-color: #353535; color: white;")
         self.reset_layers_button.setStyleSheet(DARK_MODE_STYLES["BUTTON_STYLE"])
+        self.reset_selection_button.setStyleSheet(DARK_MODE_STYLES["BUTTON_STYLE"])
 
     def apply_palette(self, palette_config):
         """

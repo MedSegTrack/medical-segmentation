@@ -1,7 +1,8 @@
-from PyQt5.QtWidgets import QFileDialog
-from PyQt5.QtWidgets import QAction, QActionGroup
+from PyQt5.QtWidgets import QAction, QActionGroup, QListWidgetItem
+from PyQt5.QtCore import Qt
 from gui.view import MAIN_SPLITTER_SIZES, LEFT_SPLITTER_SIZES, RIGHT_SPLITTER_SIZES
 from gui.filepopup import LoadFileDialog
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 class GuiController:
     """
@@ -20,6 +21,8 @@ class GuiController:
         self.is_layers_locked = False
         self.expanded_panel = None
         self.is_updating_slider = False
+        self.selection_list = []
+        self.is_selection_mode = False
 
         # Connect menu actions
         self.view.exit_action.triggered.connect(self.view.close)
@@ -51,8 +54,93 @@ class GuiController:
         self.view.y_slice_slider.setEnabled(False)
         self.view.z_slice_slider.setEnabled(False)
 
-        #TODO
-        # Connect checkbox_selection_mod to appropriate function
+        self.view.panel1.mousePressEvent = lambda event: self.mouse_click_selection(event, "x")
+        self.view.panel2.mousePressEvent = lambda event: self.mouse_click_selection(event, "y")
+        self.view.panel4.mousePressEvent = lambda event: self.mouse_click_selection(event, "z")
+
+        self.view.reset_selection_button.clicked.connect(self.clear_selection_list)
+
+        
+        self.view.checkbox_selection_mode.stateChanged.connect(self.toggle_selection_mode)
+
+    def clear_selection_list(self):
+        """
+        Clear the selection list.
+        """
+        self.selection_list = []
+        if self.expanded_panel is not None:
+            dimension = self.expanded_panel[-1]
+            self.update_view(dimension, self.file_handler.current_modality_channel)
+        else:
+            self.update_views(self.file_handler.current_modality_channel)
+        self.update_list_view()
+
+    def toggle_selection_mode(self):
+        """
+        Toggle the selection mode.
+        """
+        self.is_selection_mode = self.view.checkbox_selection_mode.isChecked()
+
+    def mouse_click_selection(self, event, dimension):
+        """
+        Handle mouse click selection event in a slice view panel.
+
+        Args:
+            event: The mouse event.
+            dimension (str): The dimension of the slice view panel ("x", "y", or "z").
+        """
+        if self.file_handler.nii_data is None or not self.is_selection_mode:
+            return
+
+        # Map dimension to the correct panel
+        if dimension == "x":
+            panel = self.view.panel1
+        elif dimension == "y":
+            panel = self.view.panel2
+        elif dimension == "z":
+            panel = self.view.panel4
+        else:
+            return
+
+        canvas = panel.figure.gca()
+        image_extent = canvas.get_images()[0].get_extent()  # Get image extent (left, right, bottom, top)
+        left, right, top, bottom = image_extent
+        # Get mouse click position in canvas coordinates
+        click_x = event.pos().x()
+        click_y = event.pos().y()
+        
+        # Transform canvas coordinates into image coordinates
+        inv = canvas.transData.inverted()
+        image_coords = inv.transform((click_x, click_y))
+        image_x, image_y = image_coords
+
+        # Check if the click is within the image bounds
+        if left <= image_x <= right and bottom <= image_y <= top:
+            # Convert to pixel coordinates of the image
+            img_width = right - left
+            img_height = top - bottom
+            current_slice = self.file_handler.current_slice[dimension]
+            if dimension == "x":
+                pixel_x = int((image_x - left) / img_width * self.file_handler.nii_data[0].shape[1])
+                pixel_y = int((image_y - bottom) / img_height * self.file_handler.nii_data[0].shape[0])
+            elif dimension == "y":
+                pixel_x = int((image_x - left) / img_width * self.file_handler.nii_data[1].shape[1])
+                pixel_y = int((image_y - bottom) / img_height * self.file_handler.nii_data[1].shape[0])
+            elif dimension == "z":
+                pixel_x = int((image_x - left) / img_width * self.file_handler.nii_data.shape[1])
+                pixel_y = int((image_y - bottom) / img_height * self.file_handler.nii_data.shape[0])
+            
+            if event.button() == Qt.LeftButton:
+                self.selection_list.append((dimension, current_slice, pixel_x, pixel_y, "P"))
+            elif event.button() == Qt.RightButton:
+                self.selection_list.append((dimension, current_slice, pixel_x, pixel_y, "N"))
+            # Update the view
+            if self.expanded_panel is not None:
+                dimension = self.expanded_panel[-1]
+                self.update_view(dimension, self.file_handler.current_modality_channel)
+            else:
+                self.update_views(self.file_handler.current_modality_channel)
+            self.update_list_view()
 
     def toggle_show_mask(self, mask_index):
         """
@@ -291,17 +379,17 @@ class GuiController:
         x_slice = self.file_handler.get_slice("x", self.file_handler.current_slice["x"], channel)
         x_mask = self.file_handler.get_mask_slice("x", self.file_handler.current_slice["x"]) if self.file_handler.nii_mask is not None else None
         if x_slice is not None:
-            self.view.update_slice(self.view.panel1, x_slice, self.file_handler.get_current_slice_index("x"), x_mask)
+            self.view.update_slice(self.view.panel1, x_slice, self.file_handler.get_current_slice_index("x"), x_mask, self.selection_list)
 
         y_slice = self.file_handler.get_slice("y", self.file_handler.current_slice["y"], channel)
         y_mask = self.file_handler.get_mask_slice("y", self.file_handler.current_slice["y"]) if self.file_handler.nii_mask is not None else None
         if y_slice is not None:
-            self.view.update_slice(self.view.panel2, y_slice, self.file_handler.get_current_slice_index("y"), y_mask)
+            self.view.update_slice(self.view.panel2, y_slice, self.file_handler.get_current_slice_index("y"), y_mask, self.selection_list)
 
         z_slice = self.file_handler.get_slice("z", self.file_handler.current_slice["z"], channel)
         z_mask = self.file_handler.get_mask_slice("z", self.file_handler.current_slice["z"]) if self.file_handler.nii_mask is not None else None
         if z_slice is not None:
-            self.view.update_slice(self.view.panel4, z_slice, self.file_handler.get_current_slice_index("z"), z_mask)
+            self.view.update_slice(self.view.panel4, z_slice, self.file_handler.get_current_slice_index("z"), z_mask, self.selection_list)
 
     def update_view(self, dimension, channel=0):
         """
@@ -315,17 +403,17 @@ class GuiController:
             x_slice = self.file_handler.get_slice("x", self.file_handler.current_slice["x"], channel)
             x_mask = self.file_handler.get_mask_slice("x", self.file_handler.current_slice["x"]) if self.file_handler.nii_mask is not None else None
             if x_slice is not None:
-                self.view.update_slice(self.view.panel1, x_slice, self.file_handler.get_current_slice_index("x"), x_mask)
+                self.view.update_slice(self.view.panel1, x_slice, self.file_handler.get_current_slice_index("x"), x_mask, self.selection_list)
         elif dimension == "y":
             y_slice = self.file_handler.get_slice("y", self.file_handler.current_slice["y"], channel)
             y_mask = self.file_handler.get_mask_slice("y", self.file_handler.current_slice["y"]) if self.file_handler.nii_mask is not None else None
             if y_slice is not None:
-                self.view.update_slice(self.view.panel2, y_slice, self.file_handler.get_current_slice_index("y"), y_mask)
+                self.view.update_slice(self.view.panel2, y_slice, self.file_handler.get_current_slice_index("y"), y_mask, self.selection_list)
         elif dimension == "z":
             z_slice = self.file_handler.get_slice("z", self.file_handler.current_slice["z"], channel)
             z_mask = self.file_handler.get_mask_slice("z", self.file_handler.current_slice["z"]) if self.file_handler.nii_mask is not None else None
             if z_slice is not None:
-                self.view.update_slice(self.view.panel4, z_slice, self.file_handler.get_current_slice_index("z"), z_mask)
+                self.view.update_slice(self.view.panel4, z_slice, self.file_handler.get_current_slice_index("z"), z_mask, self.selection_list)
 
     def update_modality_menu(self):
         """
@@ -397,3 +485,13 @@ class GuiController:
             self.view.mask_group.addAction(action)
             self.view.mask_menu.addAction(action)
         self.view.mask_menu.setEnabled(True)
+        
+    def update_list_view(self):
+        """
+        Update the list view with the current selection list.
+        """
+        self.view.list_view.clear()
+        for item in self.selection_list:
+            text = f"slice: {item[0]}, layer: {item[1]}, x: {item[2]}, y: {item[3]}, Type: {item[4]}"
+            list_item = QListWidgetItem(text)
+            self.view.list_view.addItem(list_item)
