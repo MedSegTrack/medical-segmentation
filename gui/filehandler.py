@@ -10,7 +10,8 @@ class FileHandler:
         self.nii_mask = None
         self.current_slice = {"x": 0, "y": 0, "z": 0}
         self.current_modality_channel = 0
-
+        self.show_mask = []
+        self.nii_mask_channels = 0
 
     def load_nifti_file(self, path):
         """
@@ -35,7 +36,7 @@ class FileHandler:
         """
         nifti_mask_img = nib.load(path)
         self.nii_mask = nifti_mask_img.get_fdata()
-
+        self.find_mask_channels()
 
     def get_slice(self, dimension, index, channel=0):
         """
@@ -101,13 +102,39 @@ class FileHandler:
                 mask_slice = self.nii_mask[:, :, index]
         else:
             return None
-
         # Create a colored mask
-        colored_mask = np.zeros((*mask_slice.shape, 4))  # RGBA
+        # Set colors only for enabled channels
+        colored_mask = np.zeros((*mask_slice.shape, 4))
 
-        # Set colors for different channels
-        colored_mask[mask_slice == 1] = [1, 1, 0, 0.5]  # Yellow with 50% opacity
-        colored_mask[mask_slice == 2] = [1, 0.65, 0, 0.5]  # Orange with 50% opacity
-        colored_mask[mask_slice == 3] = [1, 0, 0, 0.5]  # Red with 50% opacity
+        for i in range(self.nii_mask_channels):
+            if self.show_mask[i]:
+                colored_mask[mask_slice == i] = self.get_mask_color(i)
 
         return colored_mask
+
+    def find_mask_channels(self):
+        """
+        Find the number of channels in the mask data.
+        """
+        unique_values = np.unique(self.nii_mask.astype(int))
+        self.nii_mask_channels = len(unique_values)
+        self.show_mask = [False] * self.nii_mask_channels
+
+    def get_mask_color(self, channel):
+        """
+        Get the color associated with a given mask channel.
+
+        Args:
+            channel (int): Channel for which to get the color
+
+        Returns:
+            tuple: ARGB color associated with the given channel
+        """
+        if channel == 1:
+            return (1, 1, 0, 1)
+        elif channel == 2:
+            return (1, 0.65, 0, 1)
+        elif channel == 3:
+            return (1, 0, 0, 1)
+        else:
+            return (0, 0, 0, 0)

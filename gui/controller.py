@@ -50,9 +50,36 @@ class GuiController:
         self.view.x_slice_slider.setEnabled(False)
         self.view.y_slice_slider.setEnabled(False)
         self.view.z_slice_slider.setEnabled(False)
-        
+
         #TODO
         # Connect checkbox_selection_mod to appropriate function
+
+    def toggle_show_mask(self, mask_index):
+        """
+        Toggle the mask visibility in the view.
+        
+        Args:
+            mask_index (int): The index of the mask to toggle. 0 toggles all masks
+        """
+        if mask_index == 0:
+            # Toggle all masks
+            if self.file_handler.show_mask == [True] * self.file_handler.nii_mask_channels:
+                self.file_handler.show_mask = [False] * self.file_handler.nii_mask_channels
+            else:
+                self.file_handler.show_mask = [True] * self.file_handler.nii_mask_channels
+            self.update_mask_menu()
+        else:
+            self.file_handler.show_mask[mask_index] = not self.file_handler.show_mask[mask_index]
+            if all(not mask for mask in self.file_handler.show_mask[1:]):
+                self.file_handler.show_mask[0] = False
+            else:
+                self.file_handler.show_mask[0] = False
+            self.update_mask_menu()
+        if self.expanded_panel != None: 
+            dimension = self.expanded_panel[-1]
+            self.update_view(dimension, self.file_handler.current_modality_channel)
+        else:
+            self.update_views(self.file_handler.current_modality_channel)
 
     def on_slider_value_changed(self, dimension, value):
         """
@@ -236,20 +263,23 @@ class GuiController:
         dialog = LoadFileDialog(self.view.dark_mode_action.isChecked())
         if dialog.exec_():
             try:
+                self.file_handler.nii_data = None
+                self.file_handler.nii_mask = None
                 # Load the primary NIfTI file
                 if hasattr(dialog, 'nifti_path'):
                     self.file_handler.load_nifti_file(dialog.nifti_path)
-                    self.update_views(self.file_handler.current_modality_channel)
                     self.update_modality_menu()
                     self.initialize_sliders()
 
                 # Load the optional mask file if the checkbox is checked
                 if dialog.checkbox.isChecked() and hasattr(dialog, 'mask_path'):
                     self.file_handler.load_nifti_mask(dialog.mask_path)
+                    self.update_mask_menu()
+
+                self.update_views(self.file_handler.current_modality_channel)
 
             except Exception as e:
                 self.view.display_error(f"Failed to load files: {str(e)}")
-
 
     def update_views(self, channel=0):
         """
@@ -312,6 +342,7 @@ class GuiController:
             action.triggered.connect(lambda checked, i=i: self.change_modality(i))
             self.view.modality_group.addAction(action)
             self.view.modality_menu.addAction(action)
+        self.view.modality_menu.setEnabled(True)
 
     def change_modality(self, channel):
         """
@@ -341,4 +372,28 @@ class GuiController:
         Reset the expanded panel to None.
         """
         self.expanded_panel = None
-        
+
+    def update_mask_menu(self):
+        """
+        Update the mask menu with available masks from the NIfTI data.
+        """
+        self.view.mask_menu.clear()
+        self.view.mask_group = QActionGroup(self.view.mask_menu)
+        self.view.mask_group.setExclusive(False)
+
+        all_action = QAction("All", self.view)
+        all_action.setCheckable(True)
+        all_action.setChecked(self.file_handler.show_mask[0])
+        all_action.triggered.connect(lambda checked: self.toggle_show_mask(0))
+        self.view.mask_group.addAction(all_action)
+        self.view.mask_menu.addAction(all_action)
+
+        for i in range(1, self.file_handler.nii_mask_channels):
+            action = QAction(str(i), self.view)
+            action.setCheckable(True)
+            action.setChecked(self.file_handler.show_mask[i])
+            action.setEnabled(not self.file_handler.show_mask[0])
+            action.triggered.connect(lambda checked, i=i: self.toggle_show_mask(i))
+            self.view.mask_group.addAction(action)
+            self.view.mask_menu.addAction(action)
+        self.view.mask_menu.setEnabled(True)

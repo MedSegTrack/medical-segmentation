@@ -3,6 +3,12 @@ from PyQt5.QtGui import QPalette, QColor
 from gui.guistyles import LIGHT_MODE_STYLES, DARK_MODE_STYLES
 
 class LoadFileDialog(QDialog):
+    """
+    A dialog to load Nifti files and masks.
+
+    Args:
+        QDialog (QDialog): The base class for dialogs
+    """
     def __init__(self, dark_mode=False):
         super().__init__()
         self.setWindowTitle("Load Files")
@@ -19,6 +25,7 @@ class LoadFileDialog(QDialog):
 
         self.checkbox = QCheckBox("Load Nifti Mask")
         self.checkbox.stateChanged.connect(self.toggle_mask)
+        self.checkbox.setCheckable(False)
         layout.addWidget(self.checkbox)
 
         self.load_mask_button = QPushButton("Load Nifti Mask")
@@ -52,6 +59,7 @@ class LoadFileDialog(QDialog):
         if file_path:
             self.nifti_label.setText(file_path)
             self.nifti_path = file_path
+            self.checkbox.setCheckable(True)
 
     def load_mask_file(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Nifti Mask File", "", "Nifti Files (*.nii *.nii.gz)")

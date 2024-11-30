@@ -36,6 +36,9 @@ class GuiView(QMainWindow):
         self.file_menu = self.menu_bar.addMenu("File")
         self.settings_menu = self.menu_bar.addMenu("Settings")
         self.modality_menu = self.menu_bar.addMenu("Modality")
+        self.modality_menu.setEnabled(False)
+        self.mask_menu = self.menu_bar.addMenu("Mask")
+        self.mask_menu.setEnabled(False)
 
         # File menu actions
         self.load_action = QAction("Load", self)
@@ -45,7 +48,6 @@ class GuiView(QMainWindow):
         self.file_menu.addAction(self.save_action)
         self.file_menu.addSeparator()
         self.file_menu.addAction(self.exit_action)
-
 
         # Settings menu actions
         self.dark_mode_action = QAction("Dark Mode", self, checkable=True)
@@ -78,7 +80,7 @@ class GuiView(QMainWindow):
         self.side_options_layout = QVBoxLayout()
         self.side_options.setLayout(self.side_options_layout)
 
-        self.checkbox_lock_layers = QCheckBox("Lock layers")
+        self.checkbox_lock_layers = QCheckBox("Lock layers while scrolling")
         self.side_options.layout().addWidget(self.checkbox_lock_layers)
         self.checkbox_lock_layers.setChecked(False)
 
@@ -88,7 +90,7 @@ class GuiView(QMainWindow):
 
         self.reset_layers_button = QPushButton("Reset Layers")
         self.side_options.layout().addWidget(self.reset_layers_button)
-        
+
         self.x_slice_slider = QSlider(Qt.Horizontal)
         self.y_slice_slider = QSlider(Qt.Horizontal)
         self.z_slice_slider = QSlider(Qt.Horizontal)
@@ -173,7 +175,7 @@ class GuiView(QMainWindow):
         if slice_data is not None:
             ax.imshow(slice_data, cmap="gray")
             if mask_data is not None:
-                 ax.imshow(mask_data, interpolation='none')
+                 ax.imshow(mask_data)
         else:
             ax.text(0.5, 0.5, 'No Data', color='red', fontsize=20, ha='center', va='center')
         ax.axis("off")
@@ -204,7 +206,6 @@ class GuiView(QMainWindow):
         self.side_options.setStyleSheet("background-color: #f0f0f0; color: black;")
         self.reset_layers_button.setStyleSheet(LIGHT_MODE_STYLES["BUTTON_STYLE"])
 
-
     def apply_dark_mode(self):
         """
         Apply a dark mode color scheme to the GUI.
@@ -220,7 +221,6 @@ class GuiView(QMainWindow):
         self.setStyleSheet(stylesheet)
         self.side_options.setStyleSheet("background-color: #353535; color: white;")
         self.reset_layers_button.setStyleSheet(DARK_MODE_STYLES["BUTTON_STYLE"])
-
 
     def apply_palette(self, palette_config):
         """
