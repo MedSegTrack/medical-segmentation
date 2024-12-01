@@ -131,10 +131,10 @@ class FileHandler:
             tuple: ARGB color associated with the given channel
         """
         if channel == 1:
-            return (1, 1, 0, 1)
+            return (0, 0, 1, 1)
         elif channel == 2:
-            return (1, 0.65, 0, 1)
-        elif channel == 3:
             return (1, 0, 0, 1)
+        elif channel == 3:
+            return (1, 1, 0, 1)
         else:
             return (0, 0, 0, 0)
