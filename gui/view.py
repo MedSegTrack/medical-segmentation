@@ -1,11 +1,12 @@
 import sys
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QSplitter, QMessageBox, QPushButton, QActionGroup, QAction, QCheckBox, QFileDialog
+    QLabel, QMainWindow, QWidget, QVBoxLayout, QSplitter, QMessageBox, QPushButton, QHBoxLayout, QAction, QCheckBox, QSlider, QListWidget
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPalette, QColor
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from gui.guistyles import LIGHT_MODE_STYLES, DARK_MODE_STYLES
 
 # Constants
 WINDOW_TITLE = "Medical Segmentation"
@@ -14,101 +15,6 @@ WINDOW_HEIGHT = 600
 MAIN_SPLITTER_SIZES = [400, 400, 200]
 LEFT_SPLITTER_SIZES = [300, 300]
 RIGHT_SPLITTER_SIZES = [300, 300]
-# Stylesheet for checkboxes and buttons in light mode
-LIGHT_MODE_CHECKBOX_STYLE = """
-QCheckBox::indicator {
-    width: 10px;
-    height: 10px;
-    border: 2px solid #7A7A7A;
-    background-color: #FFFFFF;
-    border-radius: 0px; 
-}
-
-QCheckBox::indicator:checked {
-    background-color: #FFFFFF;
-    border: 2px solid #7A7A7A; 
-    image: url('assets/tick_icon_light.png'); 
-}
-
-QCheckBox {
-    font-size: 14px;
-    color: #5A5A5A;
-    padding: 5px;
-}
-"""
-
-LIGHT_MODE_BUTTON_STYLE = """
-QPushButton {
-    background-color: #5A5A5A;
-    color: #FFFFFF;
-    border: 2px solid #5A5A5A;
-    padding: 8px;
-    font-size: 12px;
-    border-radius: 0px; 
-}
-
-QPushButton:hover {
-    background-color: #4A4A4A; 
-    color: #FFFFFF;
-    border: 2px solid #4A4A4A;
-}
-
-QPushButton:pressed {
-    background-color: #3A3A3A; 
-    color: #FFFFFF;
-    border: 2px solid #3A3A3A;
-}
-"""
-
-# Stylesheet for checkboxes and buttons in dark mode
-DARK_MODE_CHECKBOX_STYLE = """
-QCheckBox::indicator {
-    width: 10px;
-    height: 10px;
-    border: 2px solid #B0B0B0; 
-    background-color: #5A5A5A;
-    border-radius: 0px; 
-}
-
-QCheckBox::indicator:checked {
-    background-color: #5A5A5A;
-    border: 2px solid #B0B0B0; 
-    image: url('assets/tick_icon_dark.png'); 
-}
-
-QCheckBox {
-    font-size: 14px;
-    color: #FFFFFF;
-    padding: 5px;
-}
-"""
-
-DARK_MODE_BUTTON_STYLE = """
-QPushButton {
-    background-color: #3A3A3A; 
-    color: #FFFFFF;
-    border: 2px solid #B0B0B0;
-    padding: 8px;
-    font-size: 12px;
-    border-radius: 0px; 
-}
-
-QPushButton:hover {
-    background-color: #2A2A2A; 
-    color: #FFFFFF;
-    border: 2px solid #B0B0B0;
-}
-
-QPushButton:pressed {
-    background-color: #1A1A1A; 
-    color: #FFFFFF;
-    border: 2px solid #B0B0B0;
-}
-"""
-
-
-
-
 
 class GuiView(QMainWindow):
     """
@@ -130,6 +36,9 @@ class GuiView(QMainWindow):
         self.file_menu = self.menu_bar.addMenu("File")
         self.settings_menu = self.menu_bar.addMenu("Settings")
         self.modality_menu = self.menu_bar.addMenu("Modality")
+        self.modality_menu.setEnabled(False)
+        self.mask_menu = self.menu_bar.addMenu("Mask")
+        self.mask_menu.setEnabled(False)
 
         # File menu actions
         self.load_action = QAction("Load", self)
@@ -139,7 +48,6 @@ class GuiView(QMainWindow):
         self.file_menu.addAction(self.save_action)
         self.file_menu.addSeparator()
         self.file_menu.addAction(self.exit_action)
-
 
         # Settings menu actions
         self.dark_mode_action = QAction("Dark Mode", self, checkable=True)
@@ -172,19 +80,57 @@ class GuiView(QMainWindow):
         self.side_options_layout = QVBoxLayout()
         self.side_options.setLayout(self.side_options_layout)
 
-        self.checkbox_lock_layers = QCheckBox("Lock layers")
-        self.checkbox_lock_layers.setStyleSheet(LIGHT_MODE_CHECKBOX_STYLE)
+        self.checkbox_lock_layers = QCheckBox("Lock layers while scrolling")
         self.side_options.layout().addWidget(self.checkbox_lock_layers)
         self.checkbox_lock_layers.setChecked(False)
 
         self.checkbox_selection_mode = QCheckBox("Selection mode")
-        self.checkbox_selection_mode.setStyleSheet(LIGHT_MODE_CHECKBOX_STYLE)
         self.side_options.layout().addWidget(self.checkbox_selection_mode)
         self.checkbox_selection_mode.setChecked(False)
-        
+
         self.reset_layers_button = QPushButton("Reset Layers")
-        self.reset_layers_button.setStyleSheet(LIGHT_MODE_BUTTON_STYLE)
         self.side_options.layout().addWidget(self.reset_layers_button)
+
+        self.x_slice_slider = QSlider(Qt.Horizontal)
+        self.y_slice_slider = QSlider(Qt.Horizontal)
+        self.z_slice_slider = QSlider(Qt.Horizontal)
+
+
+        # Create labels for each slider
+        self.x_slice_label = QLabel("X:")
+        self.x_slice_label.setFixedWidth(40)
+        self.y_slice_label = QLabel("Y:")
+        self.y_slice_label.setFixedWidth(40)
+        self.z_slice_label = QLabel("Z:")
+        self.z_slice_label.setFixedWidth(40)
+        
+        # Create horizontal layouts for each slider and label
+        x_layout = QHBoxLayout()
+        x_layout.addWidget(self.x_slice_label)
+        x_layout.addWidget(self.x_slice_slider)
+
+
+        y_layout = QHBoxLayout()
+        y_layout.addWidget(self.y_slice_label)
+        y_layout.addWidget(self.y_slice_slider)
+
+
+        z_layout = QHBoxLayout()
+        z_layout.addWidget(self.z_slice_label)
+        z_layout.addWidget(self.z_slice_slider)
+
+
+        # Add the horizontal layouts to the main layout
+        self.side_options_layout.addLayout(x_layout)
+        self.side_options_layout.addLayout(y_layout)
+        self.side_options_layout.addLayout(z_layout)
+
+        self.reset_selection_button = QPushButton("Reset Selection")
+        self.side_options_layout.addWidget(self.reset_selection_button)
+
+        # Create the list view
+        self.list_view = QListWidget()
+        self.side_options_layout.addWidget(self.list_view)
 
         self.side_options_layout.addStretch()
 
@@ -217,26 +163,52 @@ class GuiView(QMainWindow):
         canvas.figure.text(0.5,0.5, "No data", color='white', fontsize=12, ha='center', va='center')
         return canvas
 
-    def update_slice(self, panel, slice_data, slice_index):
+    def update_slice(self, panel, slice_data, slice_index, mask_data=None, selection_list=None):
         """
         Update the slice data displayed in a panel.
-        
+
         Args:
             panel (FigureCanvas): The panel to update.
             slice_data (np.ndarray): The slice data to display.
             slice_index (int): The slice index.
+            mask_data (np.ndarray, optional): The mask data to overlay. Defaults to None.
+            selection_list (list, optional): The list of selected points. Defaults to None.
         """
         canvas = panel
-        #clear panel text
+        # Clear panel text
         canvas.figure.texts = [canvas.figure.texts[0]]
         panel.figure.text(0.95, 0.05, f"Slice: {slice_index}", color="white", fontsize=12, ha='right', va='bottom')
+
         ax = canvas.figure.gca()
         ax.clear()
+
         # Display the slice data if it is not None
         if slice_data is not None:
-            ax.imshow(slice_data, cmap="gray")
+            # Set the extent to match the pixel dimensions of the slice
+            height, width = slice_data.shape
+            extent = (0, width, height, 0)
+            # Display the slice
+            ax.imshow(slice_data, cmap="gray", aspect='equal', extent=extent)
+
+            # Overlay the mask, if provided
+            if mask_data is not None:
+                ax.imshow(mask_data, alpha=0.4, aspect='equal', extent=extent)
+
+            # Overlay the selected points, if any
+            if selection_list is not None:
+                for dimension, slice_number, x, y, t, in selection_list:
+                    if (panel == self.panel1 and dimension == "x") or \
+                    (panel == self.panel2 and dimension == "y") or \
+                    (panel == self.panel4 and dimension == "z"):
+                        if slice_number == slice_index:
+                            if t == "P":
+                                ax.plot(x, height-y, 'go')
+                            else:
+                                ax.plot(x, height-y, 'ro')
         else:
+            # Display "No Data" message if slice_data is None
             ax.text(0.5, 0.5, 'No Data', color='red', fontsize=20, ha='center', va='center')
+
         ax.axis("off")
         canvas.draw()
 
@@ -253,81 +225,45 @@ class GuiView(QMainWindow):
         """
         Apply a light mode color scheme to the GUI.
         """
-        palette = self.palette()
-        palette.setColor(QPalette.Window, QColor(255, 255, 255))
-        palette.setColor(QPalette.WindowText, QColor(0, 0, 0))
-        palette.setColor(QPalette.Base, QColor(240, 240, 240))
-        palette.setColor(QPalette.AlternateBase, QColor(255, 255, 255))
-        palette.setColor(QPalette.ToolTipBase, QColor(255, 255, 255))
-        palette.setColor(QPalette.ToolTipText, QColor(0, 0, 0))
-        palette.setColor(QPalette.Text, QColor(0, 0, 0))
-        palette.setColor(QPalette.Button, QColor(240, 240, 240))
-        palette.setColor(QPalette.ButtonText, QColor(0, 0, 0))
-        palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
-        palette.setColor(QPalette.Highlight, QColor(0, 120, 215))
-        palette.setColor(QPalette.HighlightedText, QColor(255, 255, 255))
-        self.checkbox_lock_layers.setStyleSheet(LIGHT_MODE_CHECKBOX_STYLE)
-        self.checkbox_selection_mode.setStyleSheet(LIGHT_MODE_CHECKBOX_STYLE)
-        self.reset_layers_button.setStyleSheet(LIGHT_MODE_BUTTON_STYLE)
-        self.setPalette(palette)
-        self.menu_bar.setStyleSheet("""
-            QMenuBar {
-                background-color: #f0f0f0; 
-                color: black;
-            }
-            QMenuBar::item::selected {
-                background-color: #d0d0d0;
-            }
-            QMenuBar::item::pressed {
-                background-color: #b0b0b0;
-            }
-        """)
+        self.apply_palette(LIGHT_MODE_STYLES["PALETTE"])
+        stylesheet = (
+            LIGHT_MODE_STYLES["CHECKBOX_STYLE"] +
+            LIGHT_MODE_STYLES["BUTTON_STYLE"] +
+            LIGHT_MODE_STYLES["MENU_BAR_STYLE"] +
+            LIGHT_MODE_STYLES["SLIDER_STYLE"] +
+            LIGHT_MODE_STYLES["LABEL_STYLE"]
+        )
+        self.setStyleSheet(stylesheet)
         self.side_options.setStyleSheet("background-color: #f0f0f0; color: black;")
+        self.reset_layers_button.setStyleSheet(LIGHT_MODE_STYLES["BUTTON_STYLE"])
+        self.reset_selection_button.setStyleSheet(LIGHT_MODE_STYLES["BUTTON_STYLE"])
 
     def apply_dark_mode(self):
         """
         Apply a dark mode color scheme to the GUI.
         """
-        palette = self.palette()
-        palette.setColor(QPalette.Window, QColor(53, 53, 53))
-        palette.setColor(QPalette.WindowText, QColor(255, 255, 255))
-        palette.setColor(QPalette.Base, QColor(42, 42, 42))
-        palette.setColor(QPalette.AlternateBase, QColor(66, 66, 66))
-        palette.setColor(QPalette.ToolTipBase, QColor(255, 255, 255))
-        palette.setColor(QPalette.ToolTipText, QColor(255, 255, 255))
-        palette.setColor(QPalette.Text, QColor(255, 255, 255))
-        palette.setColor(QPalette.Button, QColor(53, 53, 53))
-        palette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
-        palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
-        palette.setColor(QPalette.Highlight, QColor(142, 45, 197))
-        palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
-        self.checkbox_lock_layers.setStyleSheet(DARK_MODE_CHECKBOX_STYLE)
-        self.checkbox_selection_mode.setStyleSheet(DARK_MODE_CHECKBOX_STYLE)
-        self.reset_layers_button.setStyleSheet(DARK_MODE_BUTTON_STYLE)
-        self.setPalette(palette)
-        self.menu_bar.setStyleSheet("""
-            QMenuBar {
-                background-color: #353535; 
-                color: white;
-            }
-            QMenuBar::item::selected {
-                background-color: #454545;
-            }
-            QMenuBar::item::pressed {
-                background-color: #555555;
-            }
-            QMenu {
-                background-color: #353535;
-                color: white;
-            }
-            QMenu::item::selected {
-                background-color: #454545;
-            }
-            QMenu::item::pressed {
-                background-color: #555555;
-            }
-        """)
+        self.apply_palette(DARK_MODE_STYLES["PALETTE"])
+        stylesheet = (
+            DARK_MODE_STYLES["CHECKBOX_STYLE"] +
+            DARK_MODE_STYLES["BUTTON_STYLE"] +
+            DARK_MODE_STYLES["MENU_BAR_STYLE"] +
+            DARK_MODE_STYLES["SLIDER_STYLE"] +
+            DARK_MODE_STYLES["LABEL_STYLE"]
+        )
+        self.setStyleSheet(stylesheet)
         self.side_options.setStyleSheet("background-color: #353535; color: white;")
+        self.reset_layers_button.setStyleSheet(DARK_MODE_STYLES["BUTTON_STYLE"])
+        self.reset_selection_button.setStyleSheet(DARK_MODE_STYLES["BUTTON_STYLE"])
 
-
+    def apply_palette(self, palette_config):
+        """
+        Apply a color palette to the GUI.
+        
+        Args:
+            palette_config (dict): A dictionary with the color palette configuration.
+        """
+        palette = self.palette()
+        for role, color in palette_config.items():
+            palette.setColor(getattr(QPalette, role), QColor(*color))
+        self.setPalette(palette)
 

@@ -7,8 +7,11 @@ class FileHandler:
     """
     def __init__(self):
         self.nii_data = None
+        self.nii_mask = None
         self.current_slice = {"x": 0, "y": 0, "z": 0}
         self.current_modality_channel = 0
+        self.show_mask = []
+        self.nii_mask_channels = 0
 
     def load_nifti_file(self, path):
         """
@@ -23,6 +26,17 @@ class FileHandler:
         # If the data is 3D, add a channel dimension
         if len(self.nii_data.shape) == 3:
             self.nii_data = np.expand_dims(self.nii_data, axis=-1)
+
+    def load_nifti_mask(self, path):
+        """
+        Load a Nifti mask file from a given path and store the data in the class attribute `nii_mask`.
+
+        Args:
+            path (str): Path to the Nifti mask file to load
+        """
+        nifti_mask_img = nib.load(path)
+        self.nii_mask = nifti_mask_img.get_fdata()
+        self.find_mask_channels()
 
     def get_slice(self, dimension, index, channel=0):
         """
@@ -63,4 +77,64 @@ class FileHandler:
         """
         return self.current_slice.get(dimension, 1)
 
+    def get_mask_slice(self, dimension, index):
+        """
+        Get a slice of the Nifti mask data along a given dimension.
 
+        Args:
+            dimension (str): Dimension along which to extract the slice. Can be "x", "y" or "z"
+            index (int): Index of the slice to extract
+
+        Returns:
+            np.ndarray: Slice of the Nifti mask data with different colors for each channel
+        """
+        if self.nii_mask is None:
+            return None
+
+        if dimension == "x":
+            if index < self.nii_mask.shape[0]:
+                mask_slice = self.nii_mask[index, :, :]
+        elif dimension == "y":
+            if index < self.nii_mask.shape[1]:
+                mask_slice = self.nii_mask[:, index, :]
+        elif dimension == "z":
+            if index < self.nii_mask.shape[2]:
+                mask_slice = self.nii_mask[:, :, index]
+        else:
+            return None
+        # Create a colored mask
+        # Set colors only for enabled channels
+        colored_mask = np.zeros((*mask_slice.shape, 4))
+
+        for i in range(self.nii_mask_channels):
+            if self.show_mask[i]:
+                colored_mask[mask_slice == i] = self.get_mask_color(i)
+
+        return colored_mask
+
+    def find_mask_channels(self):
+        """
+        Find the number of channels in the mask data.
+        """
+        unique_values = np.unique(self.nii_mask.astype(int))
+        self.nii_mask_channels = len(unique_values)
+        self.show_mask = [False] * self.nii_mask_channels
+
+    def get_mask_color(self, channel):
+        """
+        Get the color associated with a given mask channel.
+
+        Args:
+            channel (int): Channel for which to get the color
+
+        Returns:
+            tuple: ARGB color associated with the given channel
+        """
+        if channel == 1:
+            return (0, 0, 1, 1)
+        elif channel == 2:
+            return (1, 0, 0, 1)
+        elif channel == 3:
+            return (1, 1, 0, 1)
+        else:
+            return (0, 0, 0, 0)
