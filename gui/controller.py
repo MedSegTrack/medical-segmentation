@@ -3,6 +3,11 @@ from PyQt5.QtCore import Qt
 from gui.view import MAIN_SPLITTER_SIZES, LEFT_SPLITTER_SIZES, RIGHT_SPLITTER_SIZES
 from gui.filepopup import LoadFileDialog
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from segModel.dataManager import DataManager
+from segModel.samModel import SamModel
+from segModel.modelManager import ModelManager
+import os
+from tqdm import tqdm
 
 class GuiController:
     """
@@ -16,7 +21,17 @@ class GuiController:
             filehandler: The data filehandler containing the application's state and data.
             view: The GUI view for displaying and interacting with the user.
         """
+
         self.file_handler = filehandler
+        self.data_manager = DataManager()
+
+        sam2_checkpoint = "checkpoints/sam2.1_hiera_large.pt"
+        model_cfg = "configs/sam2.1/sam2.1_hiera_l.yaml"
+
+        self.model_manager = ModelManager(model_cfg, sam2_checkpoint)
+
+        self.segmentation_output_dir = "output"
+
         self.view = view
         self.is_layers_locked = False
         self.expanded_panel = None
@@ -49,6 +64,8 @@ class GuiController:
 
         self.view.reset_selection_button.clicked.connect(self.clear_selection_list)
         self.view.checkbox_selection_mode.stateChanged.connect(self.toggle_selection_mode)
+
+        self.view.run_segmentation_button.clicked.connect(self.start_segmentation)
 
     def _connect_panel_events(self):
         """Connect panel-specific mouse and wheel events."""
@@ -425,3 +442,37 @@ class GuiController:
             text = f"slice: {item[0]}, layer: {item[1]}, x: {item[2]}, y: {item[3]}, Type: {item[4]}"
             list_item = QListWidgetItem(text)
             self.view.list_view.addItem(list_item)
+
+    def start_segmentation(self):
+        """
+        Performs segmentation on the selected file and points and saves the results.
+        """
+        data = self.file_handler.nii_data
+        if data is not None:
+            output_folder = self.segmentation_output_dir
+            scan_name = os.path.basename(self.file_handler.file_path)
+            self.data_manager.process_all_scans(data, output_folder, scan_name, image_format="jpeg")
+            
+            predictor = self.model_manager.get_predictor()
+            seg_model = SamModel(predictor, output_folder, scan_name)
+            
+            with tqdm(total=len(self.selection_list), desc="Processing selections") as pbar:
+                for selection in self.selection_list:
+                    dimension, current_slice, pixel_x, pixel_y, label = selection
+                    for modality in range(1, self.file_handler.nii_data.shape[3]):
+                        seg_model.process_dimension(
+                            dimension=dimension,
+                            current_slice=current_slice,
+                            pixel_x=pixel_x,
+                            pixel_y=pixel_y,
+                            label=label,
+                            modality=modality
+                        )
+                        pbar.update(1)
+            
+            print("Exporting to NIfTI...")
+            seg_model.export_to_nifti()
+            print("Segmentation complete and exported.")
+        else:
+            print("No file selected. Please provide a valid file.")
+

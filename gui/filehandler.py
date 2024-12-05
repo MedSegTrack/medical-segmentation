@@ -8,6 +8,7 @@ class FileHandler:
     def __init__(self):
         self.nii_data = None
         self.nii_mask = None
+        self.file_path = None
         self.current_slice = {"x": 0, "y": 0, "z": 0}
         self.current_modality_channel = 0
         self.show_mask = []
@@ -21,6 +22,7 @@ class FileHandler:
             path (str): Path to the Nifti file to load
         """
         nifti_img = nib.load(path)
+        self.file_path = path
         self.nii_data = nifti_img.get_fdata()
         self.current_slice = {"x": self.nii_data.shape[0] // 2, "y": self.nii_data.shape[1] // 2, "z": self.nii_data.shape[2] // 2}
         # If the data is 3D, add a channel dimension
