@@ -124,8 +124,9 @@ class GuiController:
         image_extent = canvas.get_images()[0].get_extent()  # Get image extent (left, right, bottom, top)
         left, right, top, bottom = image_extent
         # Get mouse click position in canvas coordinates
-        click_x = event.pos().x()
-        click_y = event.pos().y()
+        dpr = panel.devicePixelRatio()
+        click_x = event.pos().x() * dpr
+        click_y = event.pos().y() * dpr
         
         # Transform canvas coordinates into image coordinates
         inv = canvas.transData.inverted()
