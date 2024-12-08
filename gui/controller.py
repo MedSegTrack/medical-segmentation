@@ -8,6 +8,7 @@ from segModel.samModel import SamModel
 from segModel.modelManager import ModelManager
 import os
 from tqdm import tqdm
+from collections import defaultdict
 
 class GuiController:
     """
@@ -456,20 +457,22 @@ class GuiController:
             
             predictor = self.model_manager.get_predictor()
             seg_model = SamModel(predictor, output_folder, scan_name)
-            
+
+            grouped_selection = defaultdict(list)
+            for selection in self.selection_list:
+                dimension, current_slice, pixel_x, pixel_y, label = selection
+                grouped_selection[(dimension, current_slice)].append((pixel_x, 240-pixel_y, label))
+
             with tqdm(total=len(self.selection_list), desc="Processing selections") as pbar:
-                for selection in self.selection_list:
-                    dimension, current_slice, pixel_x, pixel_y, label = selection
+                for (dimension, current_slice), points_info in grouped_selection.items():
                     for modality in range(1, self.file_handler.nii_data.shape[3]):
                         seg_model.process_dimension(
                             dimension=dimension,
                             current_slice=current_slice,
-                            pixel_x=pixel_x,
-                            pixel_y=pixel_y,
-                            label=label,
+                            points_info=points_info,
                             modality=modality
                         )
-                        pbar.update(1)
+                    pbar.update(len(points_info))
             
             print("Exporting to NIfTI...")
             seg_model.export_to_nifti()
