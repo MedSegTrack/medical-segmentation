@@ -22,7 +22,6 @@ class FileLoader:
         data_shape = self.nifti.shape[:3]
         num_modalities = len(self.nifti.modalities)
         data = np.zeros((*data_shape, num_modalities))
-        modality_index = 0
         for volume in self.nifti.get_volumes():
             if volume.axis == 'z':
                 for z in range(volume.shape[2]):
@@ -30,7 +29,6 @@ class FileLoader:
                     for x in range(slice_.shape[0]):
                         for y in range(slice_.shape[1]):
                             voxel = slice_.get_voxel(x, y)
-                            data[x, y, z, modality_index] = voxel.value
-                modality_index += 1
+                            data[x, y, z, volume.modality] = voxel.value
         nifti_img = nib.Nifti1Image(data, affine=np.eye(4))
         nib.save(nifti_img, file_path)

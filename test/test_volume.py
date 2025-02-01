@@ -7,7 +7,7 @@ class TestVolume(unittest.TestCase):
     def setUp(self):
         self.data = np.random.rand(5, 5, 3)
         self.axis = 'z'
-        self.volume = Volume(self.data, self.axis)
+        self.volume = Volume(self.data, self.axis, 3)
 
     def test_slice_creation(self):
         for z in range(self.data.shape[2]):

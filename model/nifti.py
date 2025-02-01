@@ -11,15 +11,18 @@ class Nifti:
             for modality_index in range(data.shape[3]):
                 modality_data = data[:, :, :, modality_index]
                 for axis in ['x', 'y', 'z']:
-                    volume = Volume(modality_data, axis)
+                    volume = Volume(modality_data, axis, modality_index)
                     self.add_volume(volume)
 
     def add_volume(self, volume):
         self.volumes.append(volume)
         self.num_volumes += 1
-
-    def get_volume(self, index):
-        return self.volumes[index]
+    
+    def get_volume(self, axis, modality):
+        for volume in self.volumes:
+            if volume.axis == axis and volume.modality == modality:
+                return volume
+        return None
 
     def get_volumes(self):
         return self.volumes

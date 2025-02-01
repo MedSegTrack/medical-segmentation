@@ -18,6 +18,13 @@ class TestNifti(unittest.TestCase):
             volume = self.nifti.get_volume(modality_index)
             self.assertIsInstance(volume, Volume)
             self.assertEqual(volume.shape, self.data[:, :, :, modality_index].shape[:3])
+    
+    def test_volume_creation(self):
+        for modality_index in range(self.data.shape[3]):
+            for axis in ['x', 'y', 'z']:
+                volume = self.nifti.get_volume(axis, modality_index)
+                self.assertIsInstance(volume, Volume)
+                self.assertEqual(volume.shape, self.data[:, :, :, modality_index].shape[:3])
 
     def test_get_volumes(self):
         volumes = self.nifti.get_volumes()
