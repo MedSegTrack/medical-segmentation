@@ -1,16 +1,15 @@
+import os
+import unittest
 import sys
-from PyQt5.QtWidgets import QApplication
-from gui.controller import GuiController
-from gui.filehandler import FileHandler
-from gui.view import GuiView
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'test')))
+
+def run_tests():
+    loader = unittest.TestLoader()
+    suite = loader.discover(start_dir='test', pattern='test_*.py')
+    runner = unittest.TextTestRunner()
+    runner.run(suite)
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-
-    file_handler = FileHandler()
-    view = GuiView()
-    controller = GuiController(file_handler, view)
-
-    view.show()
-    sys.exit(app.exec_())
+    # Run the tests
+    run_tests()

@@ -18,6 +18,7 @@ jedi==0.19.2
 Jinja2==3.1.4
 jupyter_client==8.6.3
 jupyter_core==5.7.2
+jupyterlab_widgets==3.0.13
 kiwisolver==1.4.7
 MarkupSafe==3.0.2
 matplotlib==3.9.2
@@ -59,3 +60,4 @@ tqdm==4.67.1
 traitlets==5.14.3
 typing_extensions==4.12.2
 wcwidth==0.2.13
+widgetsnbextension==4.0.13
