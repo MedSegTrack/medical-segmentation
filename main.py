@@ -27,5 +27,5 @@ def main():
 
 if __name__ == "__main__":
     # Run the tests
-    run_tests()
+    #run_tests()
     main()

@@ -9,8 +9,7 @@ class DataManager:
         self.mask_loader = None
         self.image = None
         self.mask = None
-        self.current_slice = 0
-        self.current_modality = 0
+
         
     def load_image(self, file_path):
         """Load a NIfTI image file.

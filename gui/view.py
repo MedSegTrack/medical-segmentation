@@ -7,7 +7,7 @@ from PyQt5.QtGui import QPalette, QColor
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from gui.guistyles import LIGHT_MODE_STYLES, DARK_MODE_STYLES
-
+import numpy as np
 # Constants
 WINDOW_TITLE = "Medical Segmentation"
 WINDOW_WIDTH = 800
@@ -188,7 +188,7 @@ class GuiView(QMainWindow):
             height, width = slice_data.shape
             extent = (0, width, height, 0)
             # Display the slice
-            ax.imshow(slice_data, cmap="gray", aspect='equal', extent=extent)
+            ax.imshow(slice_data.get_image(), cmap="gray", aspect='equal', extent=extent)
 
             # Overlay the mask, if provided
             if mask_data is not None:
