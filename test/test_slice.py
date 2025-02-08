@@ -20,7 +20,7 @@ class TestSlice(unittest.TestCase):
                 self.assertEqual(voxel.value, self.data[x, y, self.z_index])
 
     def test_get_image(self):
-        self.assertTrue(np.array_equal(self.slice.get_image(), self.data[:, :, self.z_index]))
+        self.assertTrue(np.array_equal(self.slice.get_image_as_array(), self.data[:, :, self.z_index]))
 
 if __name__ == '__main__':
     unittest.main()

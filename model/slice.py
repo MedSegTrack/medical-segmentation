@@ -24,7 +24,7 @@ class Slice:
         else:
             raise ValueError("Invalid axis")
 
-    def get_image(self):
+    def get_image_as_array(self):
         if self.axis == 'x':
             return self.data[self.z_index, :, :]
         elif self.axis == 'y':
@@ -35,7 +35,7 @@ class Slice:
             raise ValueError("Invalid axis")
 
     def __eq__(self, other):
-        return self.z_index == other.z_index and (self.get_image() == other.get_image()).all()
+        return self.z_index == other.z_index and (self.get_image_as_array() == other.get_image_as_array()).all()
 
     def __repr__(self):
         return f"Slice(z_index={self.z_index}, shape={self.shape}, axis={self.axis})"

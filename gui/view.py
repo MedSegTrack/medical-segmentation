@@ -187,10 +187,10 @@ class GuiView(QMainWindow):
             # Set the extent to match the pixel dimensions of the slice
             height, width = slice_data.shape
             extent = (0, width, height, 0)
-            # Display the slice
-            ax.imshow(slice_data.get_image(), cmap="gray", aspect='equal', extent=extent)
+            # Display the slice, needs unwrapping into an array
+            ax.imshow(slice_data.get_image_as_array(), cmap="gray", aspect='equal', extent=extent)
 
-            # Overlay the mask, if provided
+            # Overlay the mask, if provided, colored mask already an array
             if mask_data is not None:
                 ax.imshow(mask_data, alpha=0.4, aspect='equal', extent=extent)
 

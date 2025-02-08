@@ -3,14 +3,13 @@ from model.nifti import Nifti
 
 class DataManager:
     """Manages data access and file handlers for the application."""
-    
+
     def __init__(self):
         self.image_loader = None
         self.mask_loader = None
         self.image = None
         self.mask = None
 
-        
     def load_image(self, file_path):
         """Load a NIfTI image file.
         
@@ -42,7 +41,7 @@ class DataManager:
         except Exception as e:
             print(f"Error loading mask: {e}")
             return False
-            
+
     def get_image_data(self):
         """Get the current image data.
         
@@ -50,7 +49,7 @@ class DataManager:
             Nifti: The current image data
         """
         return self.image
-        
+
     def get_mask_data(self):
         """Get the current mask data.
         
@@ -58,6 +57,30 @@ class DataManager:
             Nifti: The current mask data
         """
         return self.mask
+
+    def get_image_slice(self, dimension, modality_channel, slice_index, is_mask=False):
+        """
+        Get the image slice for the given dimension, modality channel, and slice index.
+
+        Args:
+            dimension (str): The dimension to get the slice from ("x", "y", or "z").
+            modality_channel (int): The modality channel index.
+            slice_index (int): The index of the slice.
+            is_mask (bool): Whether to get the slice from the mask data.
+
+        Returns: 
+            Slice object if successful, None otherwise
+        """
+        data = self.get_mask_data() if is_mask else self.get_image_data()
+        if data is None:
+            return None
+        if is_mask:
+            modality_channel = 0
+        volume = data.get_volume(dimension, modality_channel)
+        if volume is None:
+            return None
+        slice_obj = volume.get_slice(slice_index)
+        return slice_obj
 
     def save_image(self, file_path):
         """Save the current image to a file.

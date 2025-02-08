@@ -63,6 +63,9 @@ class GuiController:
             panel.mousePressEvent = lambda event, dim=dimension: self.mouse_click_selection(event, dim)
 
     def update_sliders(self):
+        """
+        Update the slice sliders based on the current image data shape and the current slice index.
+        """
         dimension = ['x', 'y', 'z']
         for dim in dimension:
             slider = getattr(self.view, f"{dim}_slice_slider")
@@ -82,7 +85,7 @@ class GuiController:
         Clear the selection list.
         """
         self.selection_list = []
-        self.update_panels(self.current_modality_channel)
+        self.update_panels()
         self.update_list_view()
 
     def toggle_selection_mode(self):
@@ -148,7 +151,7 @@ class GuiController:
             elif event.button() == Qt.RightButton:
                 self.selection_list.append((dimension, current_slice, pixel_x, pixel_y, "N"))
 
-            self.update_panels(self.current_modality_channel)
+            self.update_panels()
             self.update_list_view()
 
     def toggle_show_mask(self, mask_index):
@@ -170,7 +173,7 @@ class GuiController:
             self.show_mask[0] = False
 
         self.update_mask_menu()
-        self.update_panels(self.current_modality_channel)
+        self.update_panels()
 
     def on_slider_value_changed(self, dimension, value):
         """
@@ -180,7 +183,7 @@ class GuiController:
             self.is_updating_slider = True  # Prevent recursion
 
             self.current_slice[dimension] = value
-            self.update_panels(self.current_modality_channel)
+            self.update_panels()
             if dimension == "x":
                 self.view.x_slice_label.setText(f"X: {value}")
             elif dimension == "y":
@@ -202,7 +205,7 @@ class GuiController:
         """
         if self.data_manager.get_image_data() is not None:
             self.current_slice = {"x": self.data_manager.get_image_data().shape[0] // 2, "y": self.data_manager.get_image_data().shape[1] // 2, "z": self.data_manager.get_image_data().shape[2] // 2}
-            self.update_panels(self.current_modality_channel)
+            self.update_panels()
             self.update_sliders()
 
     def scroll_slice(self, dimension, delta_y):
@@ -233,7 +236,7 @@ class GuiController:
                 update_current_slices(["x", "y", "z"])
             else:
                 update_current_slices([dimension])
-            self.update_panels(self.current_modality_channel)
+            self.update_panels()
             self.is_updating_slider = False
 
     def toggle_dark_mode(self):
@@ -261,7 +264,7 @@ class GuiController:
             self.view.left_splitter.setSizes(LEFT_SPLITTER_SIZES)
             self.view.right_splitter.setSizes(RIGHT_SPLITTER_SIZES)
             self.reset_expanded_panel()
-            self.update_panels(self.current_modality_channel)
+            self.update_panels()
             self.view.x_slice_slider.setEnabled(True)
             self.view.y_slice_slider.setEnabled(True)
             self.view.z_slice_slider.setEnabled(True)
@@ -323,12 +326,13 @@ class GuiController:
                     self.update_mask_menu()
                 
                 self.current_slice = {"x": self.data_manager.get_image_data().shape[0] // 2, "y": self.data_manager.get_image_data().shape[1] // 2, "z": self.data_manager.get_image_data().shape[2] // 2}
-                self.update_panels(self.current_modality_channel)
+                self.update_panels()
+                self.update_sliders()
                 
             except Exception as e:
                 self.view.display_error(f"Failed to load files: {str(e)}")
 
-    def update_panels(self, channel=0, dimensions=["x", "y", "z"]):
+    def update_panels(self, dimensions=["x", "y", "z"]):
         """
         Update all slice views for given dimensions and modality channel.
 
@@ -337,12 +341,12 @@ class GuiController:
             channel (int): The modality channel index.
         """
         if self.expanded_panel is not None:
-            self.update_panel(self.expanded_panel[-1], channel)
+            self.update_panel(self.expanded_panel[-1])
         else:
             for dimension in dimensions:
-                self.update_panel(dimension, channel)
+                self.update_panel(dimension)
 
-    def update_panel(self, dimension, channel=0):
+    def update_panel(self, dimension):
         """
         Update the view for a specific dimension and channel.
 
@@ -352,7 +356,7 @@ class GuiController:
         """
         panel_map = {"x": self.view.panel1, "y": self.view.panel2, "z": self.view.panel4}
         slice_data = self.get_current_slice(dimension, self.current_slice[dimension])
-        mask_data = self.get_current_mask(dimension, self.current_slice[dimension]) if self.data_manager.get_mask_data() is not None else None
+        mask_data = self.get_colored_mask(dimension, self.current_slice[dimension]) if self.data_manager.get_mask_data() is not None else None
         if slice_data is not None:
             self.view.update_slice(panel_map[dimension], slice_data, self.current_slice[dimension], mask_data, self.selection_list)
 
@@ -381,7 +385,7 @@ class GuiController:
             channel (int): The modality channel index.
         """
         self.current_modality_channel = channel
-        self.update_panels(self.current_modality_channel)
+        self.update_panels()
 
     def set_expanded_panel(self, panel_name):
         """
@@ -423,7 +427,7 @@ class GuiController:
             self.view.mask_group.addAction(action)
             self.view.mask_menu.addAction(action)
         self.view.mask_menu.setEnabled(True)
-        
+
     def update_list_view(self):
         """
         Update the list view with the current selection list.
@@ -433,41 +437,58 @@ class GuiController:
             text = f"slice: {item[0]}, layer: {item[1]}, x: {item[2]}, y: {item[3]}, Type: {item[4]}"
             list_item = QListWidgetItem(text)
             self.view.list_view.addItem(list_item)
-            
+
     def get_current_slice(self, dimension, slice_index):
-        return self.data_manager.get_image_data().get_volume(dimension, self.current_modality_channel).get_slice(slice_index)
-    
+        """
+        Get a slice of the Nifti data along a given dimension.
+        
+        Args:
+            dimension (str): "x", "y", or "z" indicating the slice direction.
+            slice_index (int): Index of the slice to extract.
+            
+        Returns:
+            Slice object, None otherwise: Image slice, or None if invalid input.
+        """
+        return self.data_manager.get_image_slice(dimension, self.current_modality_channel, slice_index)
+
     def get_current_mask(self, dimension, index):
         """
+        Get a slice of the Nifti mask data along a given dimension.
+        
+        Args:
+            dimension (str): "x", "y", or "z" indicating the slice direction.
+            index (int): Index of the slice to extract.
+            
+        Returns:
+            Slice object, None otherwise: Mask slice, or None if invalid input.
+        """
+        return self.data_manager.get_image_slice(dimension, self.current_modality_channel, index, is_mask=True)
+    
+    def get_colored_mask(self, dimension, index):
+        """
         Get a slice of the Nifti mask data along a given dimension with colors.
+        Slice is unwrapped into a 3D array with ARGB colors.
 
         Args:
-            dimension (str): Dimension along which to extract the slice. Can be "x", "y" or "z"
-            index (int): Index of the slice to extract
-
+            dimension (str): "x", "y", or "z" indicating the slice direction.
+            index (int): Index of the slice to extract.
+        
         Returns:
-            np.ndarray: Slice of the Nifti mask data with different colors for each channel
+            np.ndarray: Colored mask slice, or None if invalid input.
         """
-        if self.data_manager.get_mask_data() is None:
+        mask_data = self.data_manager.get_mask_data()
+        if mask_data is None:
             return None
 
-        if dimension == "x":
-            if index < self.data_manager.get_mask_data().shape[0]:
-                mask_slice = self.data_manager.get_mask_data().get_volume(dimension, self.current_modality_channel).get_slice(self.current_slice[dimension]).get_image()#[index, :, :]
-        elif dimension == "y":
-            if index < self.data_manager.get_mask_data().shape[1]:
-                mask_slice = self.data_manager.get_mask_data().get_volume(dimension, self.current_modality_channel).get_slice(self.current_slice[dimension]).get_image()#[:, index, :]
-        elif dimension == "z":
-            if index < self.data_manager.get_mask_data().shape[2]:
-                mask_slice = self.data_manager.get_mask_data().get_volume(dimension, self.current_modality_channel).get_slice(self.current_slice[dimension]).get_image()#[:, :, index]
-        else:
+        dim_map = {"x": 0, "y": 1, "z": 2}
+        if dimension not in dim_map or index >= mask_data.shape[dim_map[dimension]]:
             return None
-        # Create a colored mask
-        # Set colors only for enabled channels
+
+        mask_slice = self.get_current_mask(dimension, index).get_image_as_array()
         colored_mask = np.zeros((*mask_slice.shape, 4))
 
-        for i in range(self.mask_channels):
-            if self.show_mask[i]:
+        for i, show in enumerate(self.show_mask):
+            if show:
                 colored_mask[mask_slice == i] = self.get_mask_color(i)
 
         return colored_mask
