@@ -14,7 +14,7 @@ class TestVolume(unittest.TestCase):
             slice_ = self.volume.get_slice(z)
             self.assertIsInstance(slice_, Slice)
             self.assertEqual(slice_.z_index, z)
-            self.assertTrue(np.array_equal(slice_.get_image(), self.data[:, :, z]))
+            self.assertTrue(np.array_equal(slice_.get_image_as_array(), self.data[:, :, z]))
 
     def test_get_slices(self):
         slices = [self.volume.get_slice(z) for z in range(self.data.shape[2])]
@@ -22,7 +22,7 @@ class TestVolume(unittest.TestCase):
         for z, slice_ in enumerate(slices):
             self.assertIsInstance(slice_, Slice)
             self.assertEqual(slice_.z_index, z)
-            self.assertTrue(np.array_equal(slice_.get_image(), self.data[:, :, z]))
+            self.assertTrue(np.array_equal(slice_.get_image_as_array(), self.data[:, :, z]))
 
 if __name__ == '__main__':
     unittest.main()

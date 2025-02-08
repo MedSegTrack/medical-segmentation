@@ -55,6 +55,8 @@ class GuiController:
         self.view.reset_selection_button.clicked.connect(self.clear_selection_list)
         self.view.checkbox_selection_mode.stateChanged.connect(self.toggle_selection_mode)
 
+        self.view.list_view.itemClicked.connect(self.on_list_item_selected)
+
     def _connect_panel_events(self):
         """Connect panel-specific mouse and wheel events."""
         for dimension, panel in zip(["x", "y", "z", "3d"], [self.view.panel1, self.view.panel2, self.view.panel4]):
@@ -115,13 +117,15 @@ class GuiController:
         image_extent = canvas.get_images()[0].get_extent()  # Get image extent (left, right, bottom, top)
         left, right, top, bottom = image_extent
         # Get mouse click position in canvas coordinates
-        click_x = event.pos().x()
-        click_y = event.pos().y()
+        dpr = panel.devicePixelRatio()
+        click_x = event.pos().x() * dpr
+        click_y = event.pos().y() * dpr
         
         # Transform canvas coordinates into image coordinates
         inv = canvas.transData.inverted()
         image_coords = inv.transform((click_x, click_y))
         image_x, image_y = image_coords
+
 
         # Check if the click is within the image bounds
         if left <= image_x <= right and bottom <= image_y <= top:
@@ -129,27 +133,19 @@ class GuiController:
             img_width = right - left
             img_height = top - bottom
             current_slice = self.get_current_slice(dimension, self.current_slice[dimension])
-            
-            dimension_map = {
-                "x": self.data_manager.get_image_data()[0],
-                "y": self.data_manager.get_image_data()[1],
-                "z": self.data_manager.get_image_data()
-            }
-            
-            nii_data = dimension_map[dimension]
-            # Determine shape based on whether it's "z" or others
-            if dimension in ["x", "y"]:
-                shape_x, shape_y = nii_data.shape[1], nii_data.shape[0]
-            else:  # For "z"
-                shape_x, shape_y = nii_data.shape[1], nii_data.shape[0]
+        
+
+            shape_x, shape_y = current_slice.shape
             # Calculate pixel values
             pixel_x = int((image_x - left) / img_width * shape_x)
             pixel_y = int((image_y - bottom) / img_height * shape_y)
 
+            selected_voxel = current_slice.get_voxel(pixel_x, pixel_y)
+
             if event.button() == Qt.LeftButton:
-                self.selection_list.append((dimension, current_slice, pixel_x, pixel_y, "P"))
+                self.selection_list.append((selected_voxel, "P"))
             elif event.button() == Qt.RightButton:
-                self.selection_list.append((dimension, current_slice, pixel_x, pixel_y, "N"))
+                self.selection_list.append((selected_voxel, "N"))
 
             self.update_panels()
             self.update_list_view()
@@ -434,7 +430,7 @@ class GuiController:
         """
         self.view.list_view.clear()
         for item in self.selection_list:
-            text = f"slice: {item[0]}, layer: {item[1]}, x: {item[2]}, y: {item[3]}, Type: {item[4]}"
+            text = f"{item[0]}, Type: {item[1]}"
             list_item = QListWidgetItem(text)
             self.view.list_view.addItem(list_item)
 
@@ -519,3 +515,21 @@ class GuiController:
             return (1, 1, 0, 1)
         else:
             return (0, 0, 0, 0)
+        
+    def on_list_item_selected(self, item):
+        """Handle selection of an item in the list view.
+        
+        Args:
+            item (QListWidgetItem): The selected item
+        """
+        index = self.view.list_view.row(item)
+        selected_voxel, selection_type = self.selection_list[index]
+        
+        self.current_slice = {
+            "x": selected_voxel.x,
+            "y": selected_voxel.y,
+            "z": selected_voxel.z
+        }
+        
+        self.update_sliders()
+        self.update_panels()

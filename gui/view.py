@@ -185,10 +185,10 @@ class GuiView(QMainWindow):
         # Display the slice data if it is not None
         if slice_data is not None:
             # Set the extent to match the pixel dimensions of the slice
-            height, width = slice_data.shape
+            width, height = slice_data.shape
             extent = (0, width, height, 0)
             # Display the slice, needs unwrapping into an array
-            ax.imshow(slice_data.get_image_as_array(), cmap="gray", aspect='equal', extent=extent)
+            ax.imshow(np.rot90(slice_data.get_image_as_array(), k=1), cmap="gray", aspect='equal', extent=extent)
 
             # Overlay the mask, if provided, colored mask already an array
             if mask_data is not None:
@@ -196,15 +196,26 @@ class GuiView(QMainWindow):
 
             # Overlay the selected points, if any
             if selection_list is not None:
-                for dimension, slice_number, x, y, t, in selection_list:
-                    if (panel == self.panel1 and dimension == "x") or \
-                    (panel == self.panel2 and dimension == "y") or \
-                    (panel == self.panel4 and dimension == "z"):
-                        if slice_number == slice_index:
-                            if t == "P":
-                                ax.plot(x, height-y, 'go')
-                            else:
-                                ax.plot(x, height-y, 'ro')
+                for voxel, t, in selection_list:
+                    x,y,z = 0,0,0
+                    if panel == self.panel1:
+                        x = voxel.y
+                        y = voxel.z
+                        z = voxel.x
+                    elif panel == self.panel2:
+                        x = voxel.x
+                        y = voxel.z
+                        z = voxel.y
+                    elif panel == self.panel4:
+                        x = voxel.x
+                        y = voxel.y
+                        z = voxel.z
+                        
+                    if z == slice_index:
+                        if t == "P":
+                            ax.plot(x, height-y, 'go')
+                        else:
+                            ax.plot(x, height-y, 'ro')
         else:
             # Display "No Data" message if slice_data is None
             ax.text(0.5, 0.5, 'No Data', color='red', fontsize=20, ha='center', va='center')
