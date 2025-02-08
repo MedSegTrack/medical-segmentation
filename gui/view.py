@@ -4,10 +4,14 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPalette, QColor
+from PyQt5.QtCore import QObject, QEvent
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from gui.guistyles import LIGHT_MODE_STYLES, DARK_MODE_STYLES
 import numpy as np
+from vedo import Plotter
+from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+from vtkmodules.vtkRenderingOpenGL2 import vtkGenericOpenGLRenderWindow
 # Constants
 WINDOW_TITLE = "Medical Segmentation"
 WINDOW_WIDTH = 800
@@ -73,7 +77,7 @@ class GuiView(QMainWindow):
         self.panel1 = self.create_plot_panel("X-Slice")
         self.panel4 = self.create_plot_panel("Z-Slice")
         self.panel2 = self.create_plot_panel("Y-Slice")
-        self.panel3 = self.create_plot_panel("3D View")
+        self.panel3 = self.create_vedo_panel()
 
 
         self.side_options = QWidget()
@@ -277,3 +281,29 @@ class GuiView(QMainWindow):
         for role, color in palette_config.items():
             palette.setColor(getattr(QPalette, role), QColor(*color))
         self.setPalette(palette)
+
+    def create_vedo_panel(self):
+        """
+        Create a vedo 3D plot panel.
+        """
+        panel = QWidget()
+        panel.setStyleSheet("border: 10px solid black;")  # Apply black border
+        layout = QVBoxLayout()
+        panel.setLayout(layout)
+        # Create a QVTKRenderWindowInteractor
+        self.vtk_widget = QVTKRenderWindowInteractor(parent=panel)
+        layout.addWidget(self.vtk_widget)
+
+        # Initialize the vedo Plotter
+        self.vedo_plotter = Plotter(qt_widget=self.vtk_widget, sharecam=True)
+        self.vedo_plotter.show(axes=None, interactive=False, bg="black", title="3D View")  # Blank plot
+
+        return panel
+    
+    def get_vedo_plotter(self):
+        """
+        Return the vedo Plotter instance.
+        """
+        return self.vedo_plotter
+
+

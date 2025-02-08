@@ -1,8 +1,12 @@
 from PyQt5.QtWidgets import QAction, QActionGroup, QListWidgetItem
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QEvent
 from gui.view import MAIN_SPLITTER_SIZES, LEFT_SPLITTER_SIZES, RIGHT_SPLITTER_SIZES
 from gui.filepopup import LoadFileDialog
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+import vedo
+from vedo import Volume, Plotter, merge
+from functools import partial
+
 import numpy as np
 class GuiController:
     """
@@ -16,6 +20,7 @@ class GuiController:
             filehandler: The data filehandler containing the application's state and data.
             view: The GUI view for displaying and interacting with the user.
         """
+
         self.data_manager = data_manager
         self.view = view
         self.is_layers_locked = False
@@ -59,7 +64,7 @@ class GuiController:
 
     def _connect_panel_events(self):
         """Connect panel-specific mouse and wheel events."""
-        for dimension, panel in zip(["x", "y", "z", "3d"], [self.view.panel1, self.view.panel2, self.view.panel4]):
+        for dimension, panel in zip(["x", "y", "z"], [self.view.panel1, self.view.panel2, self.view.panel4]):
             panel.mouseDoubleClickEvent = lambda event, dim=dimension: self.toggle_panel(f"Panel-{dim}")
             panel.wheelEvent = lambda event, dim=dimension: self.scroll_slice(dim, event.angleDelta().y())
             panel.mousePressEvent = lambda event, dim=dimension: self.mouse_click_selection(event, dim)
@@ -78,7 +83,7 @@ class GuiController:
                 slider.setEnabled(True)
             else:
                 slider.setEnabled(False)
-        if self.expanded_panel is not None:
+        if self.expanded_panel is not None and self.expanded_panel[-1] in dimension:
             cur_slider = getattr(self.view, f"{self.expanded_panel[-1]}_slice_slider")
             cur_slider.setEnabled(True)
 
@@ -149,6 +154,7 @@ class GuiController:
 
             self.update_panels()
             self.update_list_view()
+            self.update_3d_view()
 
     def toggle_show_mask(self, mask_index):
         """
@@ -170,6 +176,7 @@ class GuiController:
 
         self.update_mask_menu()
         self.update_panels()
+        self.update_3d_view()
 
     def on_slider_value_changed(self, dimension, value):
         """
@@ -244,7 +251,7 @@ class GuiController:
         else:
             self.view.apply_light_mode()
 
-    def toggle_panel(self, panel_name):
+    def toggle_panel(self, panel_name, event=None):
         """
         Toggle the expansion state of a specific panel.
 
@@ -324,6 +331,8 @@ class GuiController:
                 self.current_slice = {"x": self.data_manager.get_image_data().shape[0] // 2, "y": self.data_manager.get_image_data().shape[1] // 2, "z": self.data_manager.get_image_data().shape[2] // 2}
                 self.update_panels()
                 self.update_sliders()
+                self.update_3d_view()
+                self.view.get_vedo_plotter().add_callback("RightButtonPressEvent", partial(self.toggle_panel, "Panel-3d"))
                 
             except Exception as e:
                 self.view.display_error(f"Failed to load files: {str(e)}")
@@ -336,11 +345,12 @@ class GuiController:
             dimensions (list): List of dimensions to update.
             channel (int): The modality channel index.
         """
-        if self.expanded_panel is not None:
-            self.update_panel(self.expanded_panel[-1])
-        else:
-            for dimension in dimensions:
-                self.update_panel(dimension)
+        if self.expanded_panel != "Panel-3d":
+            if self.expanded_panel is not None:
+                self.update_panel(self.expanded_panel[-1])
+            else:
+                for dimension in dimensions:
+                    self.update_panel(dimension)
 
     def update_panel(self, dimension):
         """
@@ -382,6 +392,7 @@ class GuiController:
         """
         self.current_modality_channel = channel
         self.update_panels()
+        self.update_3d_view()
 
     def set_expanded_panel(self, panel_name):
         """
@@ -515,7 +526,95 @@ class GuiController:
             return (1, 1, 0, 1)
         else:
             return (0, 0, 0, 0)
-        
+
+    def update_3d_view(self):
+        """
+        Update the 3D view with the current volume data and overlay the mask data.
+        """
+        volume_data = self.data_manager.get_image_data().data  # Get full image data
+        mask_data = self.data_manager.get_mask_data().data if self.data_manager.get_mask_data() is not None else None
+
+        if volume_data is not None:
+            volume_data = np.array(volume_data)
+            # Handle 4D data by selecting the current modality channel
+            if len(volume_data.shape) == 4:
+                volume_data = volume_data[..., self.current_modality_channel]
+            volume = vedo.Volume(volume_data)
+            self.view.get_vedo_plotter().clear()
+
+            actors = [volume]
+            
+            if self.show_mask == [False] * self.mask_channels:
+                if self.selection_list:
+                    for voxel, type in self.selection_list:
+                        # Create a small volumetric sphere (3x3x3 voxels)
+                        sphere_vol = np.zeros_like(volume_data)
+                        
+                        # Create spherical pattern at target coordinates
+                        x, y, z = int(voxel.x), int(voxel.y), int(voxel.z)
+                        sphere_vol[x-1:x+2, y-1:y+2, z-1:z+2] = 1  # Simple 3x3x3 cube
+                        # For better sphere shape (5x5x5):
+                        # sphere_vol[x-2:x+3, y-2:y+3, z-2:z+3] = create_sphere_kernel()
+                        
+                        # Create volume with custom color/opacity
+                        vsphere = vedo.Volume(sphere_vol)
+                        color = [0, 1, 0] if type == "P" else [1, 0, 0]  # RGB colors
+                        vsphere.cmap(color)
+                        
+                        actors.append(vsphere)
+                self.view.get_vedo_plotter().show(actors, axes=None, viewup="z", bg='black', title = '3D View', bg2='black')
+            else:
+                if mask_data is not None:
+                    mask_data = np.array(mask_data)
+                    # Handle 4D mask data by selecting the first channel
+                    if len(mask_data.shape) == 4:
+                        mask_data = mask_data[..., 0]
+
+                    # Determine which masks to display
+                    all_masks_visible = self.show_mask[0]
+                    masks_to_show = []
+                    if all_masks_visible:
+                        masks_to_show = [1, 2, 3]
+                    else:
+                        masks_to_show = [i+1 for i, visible in enumerate(self.show_mask[1:]) if visible]
+
+                    # Process the mask data to include only selected masks
+                    processed_mask = np.zeros_like(mask_data)
+                    for mask_value in masks_to_show:
+                        processed_mask = np.where(mask_data == mask_value, mask_value, processed_mask)
+
+                    # Create mask volume and apply custom colormap
+                    mask_volume = vedo.Volume(processed_mask)
+                    # Define custom color map: 0-transparent, 1-blue, 2-red, 3-blue
+                    colors = (
+                        [
+                            (0, [0, 0, 0]),  # Transparent
+                            (1, [0, 0, 1]),  # Blue
+                            (2, [1, 0, 0]),  # Red
+                            (3, [1, 1, 0]),  # Blue
+                        ]
+                    )
+                    mask_volume.cmap(colors)
+                    actors.append(mask_volume)
+                    if self.selection_list:
+                        for voxel, type in self.selection_list:
+                            # Create a small volumetric sphere (3x3x3 voxels)
+                            sphere_vol = np.zeros_like(volume_data)
+                            
+                            # Create spherical pattern at target coordinates
+                            x, y, z = int(voxel.x), int(voxel.y), int(voxel.z)
+                            sphere_vol[x-1:x+2, y-1:y+2, z-1:z+2] = 1  # Simple 3x3x3 cube
+                            # For better sphere shape (5x5x5):
+                            # sphere_vol[x-2:x+3, y-2:y+3, z-2:z+3] = create_sphere_kernel()
+                            
+                            # Create volume with custom color/opacity
+                            vsphere = vedo.Volume(sphere_vol)
+                            color = [0, 1, 0] if type == "P" else [1, 0, 0]  # RGB colors
+                            vsphere.cmap(color)
+                            
+                            actors.append(vsphere)
+                    self.view.get_vedo_plotter().show(actors, axes=None, viewup="z", bg='black', title='3D View', bg2='black')
+
     def on_list_item_selected(self, item):
         """Handle selection of an item in the list view.
         
@@ -533,3 +632,4 @@ class GuiController:
         
         self.update_sliders()
         self.update_panels()
+        
