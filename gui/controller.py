@@ -6,6 +6,9 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import vedo
 from functools import partial
 
+from segmentation.segmentationController import SegmentationController
+import os
+
 import numpy as np
 class GuiController:
     """
@@ -31,6 +34,15 @@ class GuiController:
         self.current_modality_channel = 0
         self.show_mask = []
         self.mask_channels = 0
+
+        self.segmentation_controller = None
+
+        try:
+            self.segmentation_controller = SegmentationController(self.data_manager)
+            self.segmentation_controller.initialize_model()
+        except Exception as e:
+            print(f"Warning: Could not initialize segmentation controller: {e}")
+
 
         self._initialize_actions()
         self._connect_panel_events()
@@ -60,6 +72,8 @@ class GuiController:
         self.view.checkbox_selection_mode.stateChanged.connect(self.toggle_selection_mode)
 
         self.view.list_view.itemClicked.connect(self.on_list_item_selected)
+
+        self.view.run_segmentation_button.clicked.connect(self.start_segmentation)
 
     def _connect_panel_events(self):
         """Connect panel-specific mouse and wheel events."""
@@ -607,3 +621,75 @@ class GuiController:
         
         self.update_sliders()
         self.update_panels()
+        
+    def start_segmentation(self):
+        """Start segmentation process with selected points."""
+        if not self.data_manager.image_loader:
+            self.view.display_error("No image loaded")
+            return
+            
+        if not self.selection_list:
+            self.view.display_error("No points selected")
+            return
+
+        if not self.segmentation_controller:
+            self.view.display_error("Segmentation model not initialized")
+            return
+
+        try:
+                    
+            # Group selections by slice
+            grouped_selections = self._group_selections()
+            if not grouped_selections:
+                self.view.display_error("No valid selections found")
+                return
+
+            try:
+                # Run segmentation with image directory and grouped selections
+                all_masks = self.segmentation_controller.run_segmentation(
+                    points_by_slice=grouped_selections,
+                    dimension='z'
+                )
+
+                # Update GUI with results
+                if all_masks:
+                    #TODO: Update GUI with new mask
+                    for id, mask in all_masks.items():
+                        from PIL import Image
+                        output_dir = "output/"
+                        os.makedirs(output_dir, exist_ok=True)
+                        mask_2d = mask[0, :, :] if len(mask.shape) == 3 else mask 
+                        mask_normalized = (mask_2d * 255).astype(np.uint8)
+                        output_mask = Image.fromarray(mask_normalized)
+                        output_mask.save(f"{output_dir}/{id}.png")
+                    pass
+                else:
+                    self.view.display_error("No masks generated")
+
+            except Exception as e:
+                self.view.display_error(f"Segmentation failed: {str(e)}")
+
+        finally:
+            #TODO: Cleanup temporary files
+            pass
+
+    def _group_selections(self):
+        """Group selection points by slice index.
+        
+        Returns:
+            Dict[int, List[Tuple[int, int, str]]]: Dictionary mapping slice indices to lists of (x, y, label) tuples
+        """
+        grouped = {}
+        for voxel, label in self.selection_list:
+            # Use z coordinate as slice index
+            slice_idx = voxel.z
+            
+            if slice_idx not in grouped:
+                grouped[slice_idx] = []
+                
+            # Store x, y coordinates and label
+            grouped[slice_idx].append(
+                (voxel.x, self.data_manager.image.shape[0]-voxel.y, label)
+            )
+        
+        return grouped

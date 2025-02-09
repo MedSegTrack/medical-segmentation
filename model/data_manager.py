@@ -1,5 +1,10 @@
+import numpy as np
+import os
+from typing import Dict, Optional, Tuple
 from model.file_loader import FileLoader
 from model.nifti import Nifti
+from config import CONFIG
+from .data_converter import NiftiToImageConverter
 
 class DataManager:
     """Manages data access and file handlers for the application."""
@@ -9,6 +14,8 @@ class DataManager:
         self.mask_loader = None
         self.image = None
         self.mask = None
+        self.converted_paths: Dict[str, str] = {}
+        self.converter = NiftiToImageConverter()
 
     def load_image(self, file_path):
         """Load a NIfTI image file.
@@ -113,3 +120,25 @@ class DataManager:
             except Exception as e:
                 print(f"Error saving mask: {e}")
         return False
+
+    def prepare_for_segmentation(self, axis: str = 'z') -> Optional[str]:
+        """Convert volume data for segmentation."""
+        if not self.image_loader:
+            return None
+            
+        output_dir = os.path.join(
+            CONFIG['temp_dir'],
+            f"scan_{os.path.basename(self.image_loader.file_path)}_{axis}/"
+        )
+        
+        try:
+            path = self.converter.convert_volume(
+                self.image_loader.nii_data,
+                output_dir,
+                axis
+            )
+            self.converted_paths[axis] = path
+            return path
+        except Exception as e:
+            print(f"Error converting volume: {e}")
+            return None
