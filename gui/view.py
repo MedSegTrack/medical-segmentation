@@ -1,4 +1,3 @@
-import sys
 from PyQt5.QtWidgets import (
     QLabel, QMainWindow, QWidget, QVBoxLayout, QSplitter, QMessageBox, QPushButton, QHBoxLayout, QAction, QCheckBox, QSlider, QListWidget
 )
@@ -11,7 +10,6 @@ from gui.guistyles import LIGHT_MODE_STYLES, DARK_MODE_STYLES
 import numpy as np
 from vedo import Plotter
 from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
-from vtkmodules.vtkRenderingOpenGL2 import vtkGenericOpenGLRenderWindow
 # Constants
 WINDOW_TITLE = "Medical Segmentation"
 WINDOW_WIDTH = 800
@@ -178,54 +176,55 @@ class GuiView(QMainWindow):
             mask_data (np.ndarray, optional): The mask data to overlay. Defaults to None.
             selection_list (list, optional): The list of selected points. Defaults to None.
         """
-        canvas = panel
-        # Clear panel text
-        canvas.figure.texts = [canvas.figure.texts[0]]
-        panel.figure.text(0.95, 0.05, f"Slice: {slice_index}", color="white", fontsize=12, ha='right', va='bottom')
+        fig = panel.figure
 
-        ax = canvas.figure.gca()
+        # Clear all but the first text and add the slice index label.
+        if fig.texts:
+            fig.texts = [fig.texts[0]]
+        fig.text(0.95, 0.05, f"Slice: {slice_index}",
+                color="white", fontsize=12, ha="right", va="bottom")
+
+        ax = fig.gca()
         ax.clear()
 
-        # Display the slice data if it is not None
         if slice_data is not None:
-            # Set the extent to match the pixel dimensions of the slice
+            # Determine the extent of the image.
             width, height = slice_data.shape
             extent = (0, width, height, 0)
-            # Display the slice, needs unwrapping into an array
-            ax.imshow(np.rot90(slice_data.get_image_as_array(), k=1), cmap="gray", aspect='equal', extent=extent)
+            
+            # Display the slice image (rotated 90°).
+            img = np.rot90(slice_data.get_image_as_array(), k=1)
+            ax.imshow(img, cmap="gray", aspect="equal", extent=extent)
 
-            # Overlay the mask, if provided, colored mask already an array
+            # Overlay the mask if provided.
             if mask_data is not None:
-                ax.imshow(np.rot90(mask_data, k=1), alpha=0.4, aspect='equal', extent=extent)
+                ax.imshow(np.rot90(mask_data, k=1), alpha=0.4, aspect="equal", extent=extent)
 
-            # Overlay the selected points, if any
-            if selection_list is not None:
-                for voxel, t, in selection_list:
-                    x,y,z = 0,0,0
-                    if panel == self.panel1:
-                        x = voxel.y
-                        y = voxel.z
-                        z = voxel.x
-                    elif panel == self.panel2:
-                        x = voxel.x
-                        y = voxel.z
-                        z = voxel.y
-                    elif panel == self.panel4:
-                        x = voxel.x
-                        y = voxel.y
-                        z = voxel.z
-                        
+            # Define a mapping for converting voxel coordinates based on the panel.
+            mapping = None
+            if panel == self.panel1:
+                mapping = lambda v: (v.y, v.z, v.x)
+            elif panel == self.panel2:
+                mapping = lambda v: (v.x, v.z, v.y)
+            elif panel == self.panel4:
+                mapping = lambda v: (v.x, v.y, v.z)
+
+            # Overlay the selected points if provided.
+            if selection_list is not None and mapping is not None:
+                for voxel, t in selection_list:
+                    x, y, z = mapping(voxel)
                     if z == slice_index:
-                        if t == "P":
-                            ax.plot(x, height-y, 'go')
-                        else:
-                            ax.plot(x, height-y, 'ro')
+                        marker = "go" if t == "P" else "ro"
+                        # Plot the point, adjusting y-coordinate so the image is not upside-down.
+                        ax.plot(x, height - y, marker)
         else:
-            # Display "No Data" message if slice_data is None
-            ax.text(0.5, 0.5, 'No Data', color='red', fontsize=20, ha='center', va='center')
+            # Show a "No Data" message when slice_data is None.
+            ax.text(0.5, 0.5, "No Data", color="red", fontsize=20,
+                    ha="center", va="center")
 
         ax.axis("off")
-        canvas.draw()
+        panel.draw()
+
 
     def display_error(self, message):
         """

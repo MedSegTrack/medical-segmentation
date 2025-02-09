@@ -4,7 +4,6 @@ from gui.view import MAIN_SPLITTER_SIZES, LEFT_SPLITTER_SIZES, RIGHT_SPLITTER_SI
 from gui.filepopup import LoadFileDialog
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import vedo
-from vedo import Volume, Plotter, merge
 from functools import partial
 
 import numpy as np
@@ -94,6 +93,7 @@ class GuiController:
         self.selection_list = []
         self.update_panels()
         self.update_list_view()
+        self.update_3d_view()
 
     def toggle_selection_mode(self):
         """
@@ -345,12 +345,11 @@ class GuiController:
             dimensions (list): List of dimensions to update.
             channel (int): The modality channel index.
         """
-        if self.expanded_panel != "Panel-3d":
-            if self.expanded_panel is not None:
-                self.update_panel(self.expanded_panel[-1])
-            else:
-                for dimension in dimensions:
-                    self.update_panel(dimension)
+        if self.expanded_panel != "Panel-3d" and self.expanded_panel is not None:
+            self.update_panel(self.expanded_panel[-1])
+        else:
+            for dimension in dimensions:
+                self.update_panel(dimension)
 
     def update_panel(self, dimension):
         """
@@ -362,7 +361,9 @@ class GuiController:
         """
         panel_map = {"x": self.view.panel1, "y": self.view.panel2, "z": self.view.panel4}
         slice_data = self.get_current_slice(dimension, self.current_slice[dimension])
-        mask_data = self.get_colored_mask(dimension, self.current_slice[dimension]) if self.data_manager.get_mask_data() is not None else None
+        mask_data = None
+        if self.data_manager.get_mask_data() is not None:
+            mask_data = self.get_colored_mask(dimension, self.current_slice[dimension])
         if slice_data is not None:
             self.view.update_slice(panel_map[dimension], slice_data, self.current_slice[dimension], mask_data, self.selection_list)
 
@@ -531,89 +532,63 @@ class GuiController:
         """
         Update the 3D view with the current volume data and overlay the mask data.
         """
-        volume_data = self.data_manager.get_image_data().data  # Get full image data
-        mask_data = self.data_manager.get_mask_data().data if self.data_manager.get_mask_data() is not None else None
+        # Retrieve volume and mask data
+        image_data_obj = self.data_manager.get_image_data()
+        volume_data = image_data_obj.data if image_data_obj is not None else None
+        mask_data_obj = self.data_manager.get_mask_data()
+        mask_data = mask_data_obj.data if mask_data_obj is not None else None
 
-        if volume_data is not None:
-            volume_data = np.array(volume_data)
-            # Handle 4D data by selecting the current modality channel
-            if len(volume_data.shape) == 4:
-                volume_data = volume_data[..., self.current_modality_channel]
-            volume = vedo.Volume(volume_data)
-            self.view.get_vedo_plotter().clear()
+        if volume_data is None:
+            return
 
-            actors = [volume]
-            
-            if self.show_mask == [False] * self.mask_channels:
-                if self.selection_list:
-                    for voxel, type in self.selection_list:
-                        # Create a small volumetric sphere (3x3x3 voxels)
-                        sphere_vol = np.zeros_like(volume_data)
-                        
-                        # Create spherical pattern at target coordinates
-                        x, y, z = int(voxel.x), int(voxel.y), int(voxel.z)
-                        sphere_vol[x-1:x+2, y-1:y+2, z-1:z+2] = 1  # Simple 3x3x3 cube
-                        # For better sphere shape (5x5x5):
-                        # sphere_vol[x-2:x+3, y-2:y+3, z-2:z+3] = create_sphere_kernel()
-                        
-                        # Create volume with custom color/opacity
-                        vsphere = vedo.Volume(sphere_vol)
-                        color = [0, 1, 0] if type == "P" else [1, 0, 0]  # RGB colors
-                        vsphere.cmap(color)
-                        
-                        actors.append(vsphere)
-                self.view.get_vedo_plotter().show(actors, axes=None, viewup="z", bg='black', title = '3D View', bg2='black')
-            else:
-                if mask_data is not None:
-                    mask_data = np.array(mask_data)
-                    # Handle 4D mask data by selecting the first channel
-                    if len(mask_data.shape) == 4:
-                        mask_data = mask_data[..., 0]
+        # Ensure volume data is a numpy array and handle 4D data by selecting the modality channel
+        volume_data = np.array(volume_data)
+        if volume_data.ndim == 4:
+            volume_data = volume_data[..., self.current_modality_channel]
 
-                    # Determine which masks to display
-                    all_masks_visible = self.show_mask[0]
-                    masks_to_show = []
-                    if all_masks_visible:
-                        masks_to_show = [1, 2, 3]
-                    else:
-                        masks_to_show = [i+1 for i, visible in enumerate(self.show_mask[1:]) if visible]
+        # Create the volume actor and prepare the plotter
+        volume = vedo.Volume(volume_data)
+        plotter = self.view.get_vedo_plotter()
+        plotter.clear()
+        actors = [volume]
 
-                    # Process the mask data to include only selected masks
-                    processed_mask = np.zeros_like(mask_data)
-                    for mask_value in masks_to_show:
-                        processed_mask = np.where(mask_data == mask_value, mask_value, processed_mask)
+        # Helper function to create a small volumetric sphere at the voxel location.
+        def create_voxel_sphere(voxel, vol_data, marker_type):
+            sphere_vol = np.zeros_like(vol_data)
+            x, y, z = int(voxel.x), int(voxel.y), int(voxel.z)
+            sphere_vol[x - 1: x + 2, y - 1: y + 2, z - 1: z + 2] = 1  # 3x3x3 cube pattern
+            vsphere = vedo.Volume(sphere_vol)
+            color = [(1,[0, 1, 0])] if marker_type == "P" else [(2, [1, 0, 0])]
+            vsphere.cmap(color)
+            return vsphere
 
-                    # Create mask volume and apply custom colormap
-                    mask_volume = vedo.Volume(processed_mask)
-                    # Define custom color map: 0-transparent, 1-blue, 2-red, 3-blue
-                    colors = (
-                        [
-                            (0, [0, 0, 0]),  # Transparent
-                            (1, [0, 0, 1]),  # Blue
-                            (2, [1, 0, 0]),  # Red
-                            (3, [1, 1, 0]),  # Blue
-                        ]
-                    )
-                    mask_volume.cmap(colors)
-                    actors.append(mask_volume)
-                    if self.selection_list:
-                        for voxel, type in self.selection_list:
-                            # Create a small volumetric sphere (3x3x3 voxels)
-                            sphere_vol = np.zeros_like(volume_data)
-                            
-                            # Create spherical pattern at target coordinates
-                            x, y, z = int(voxel.x), int(voxel.y), int(voxel.z)
-                            sphere_vol[x-1:x+2, y-1:y+2, z-1:z+2] = 1  # Simple 3x3x3 cube
-                            # For better sphere shape (5x5x5):
-                            # sphere_vol[x-2:x+3, y-2:y+3, z-2:z+3] = create_sphere_kernel()
-                            
-                            # Create volume with custom color/opacity
-                            vsphere = vedo.Volume(sphere_vol)
-                            color = [0, 1, 0] if type == "P" else [1, 0, 0]  # RGB colors
-                            vsphere.cmap(color)
-                            
-                            actors.append(vsphere)
-                    self.view.get_vedo_plotter().show(actors, axes=None, viewup="z", bg='black', title='3D View', bg2='black')
+        # If any masks should be shown, process and add the mask volume.
+        if self.show_mask != [False] * self.mask_channels:
+            if mask_data is not None:
+                mask_data = np.array(mask_data)
+                if mask_data.ndim == 4:
+                    mask_data = mask_data[..., 0]
+
+                # Determine which mask values to display.
+                masks_to_show = [1, 2, 3] if self.show_mask[0] else [i + 1 for i, visible in enumerate(self.show_mask[1:]) if visible]
+                # Use vectorized operation to keep only the selected mask values.
+                processed_mask = np.where(np.isin(mask_data, masks_to_show), mask_data, 0)
+                mask_volume = vedo.Volume(processed_mask)
+                # Custom colormap: 0-transparent, 1-blue, 2-red, 3-yellow
+                colors = [
+                    (0, [0, 0, 0]),
+                    (1, [0, 0, 1]),
+                    (2, [1, 0, 0]),
+                    (3, [1, 1, 0]),
+                ]
+                mask_volume.cmap(colors)
+                actors.append(mask_volume)
+
+        if self.selection_list:
+            for voxel, marker_type in self.selection_list:
+                actors.append(create_voxel_sphere(voxel, volume_data, marker_type))
+
+        plotter.show(actors, axes=None, viewup="z", bg='black', title='3D View', bg2='black')
 
     def on_list_item_selected(self, item):
         """Handle selection of an item in the list view.
@@ -632,4 +607,3 @@ class GuiController:
         
         self.update_sliders()
         self.update_panels()
-        
