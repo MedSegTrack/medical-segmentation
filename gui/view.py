@@ -196,7 +196,7 @@ class GuiView(QMainWindow):
 
             # Overlay the mask, if provided, colored mask already an array
             if mask_data is not None:
-                ax.imshow(mask_data, alpha=0.4, aspect='equal', extent=extent)
+                ax.imshow(np.rot90(mask_data, k=1), alpha=0.4, aspect='equal', extent=extent)
 
             # Overlay the selected points, if any
             if selection_list is not None:
