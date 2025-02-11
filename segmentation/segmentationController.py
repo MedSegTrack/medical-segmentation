@@ -112,6 +112,8 @@ class SegmentationController:
             # Merge and store results
             for idx, mask in {**forward_masks, **backward_masks}.items():
                 self.current_masks[f"{dimension}_{idx}"] = mask
+
+            self.data_manager.create_mask_from_segmentation(self.current_masks, dimension)
                     
             return self.current_masks
                 

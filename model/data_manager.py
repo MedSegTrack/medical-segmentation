@@ -142,3 +142,47 @@ class DataManager:
         except Exception as e:
             print(f"Error converting volume: {e}")
             return None
+        
+    def create_mask_from_segmentation(self, masks: Dict[str, np.ndarray], dimension: str) -> bool:
+        """Convert segmentation masks to NIfTI structure.
+        
+        Args:
+            masks: Dictionary of masks from segmentation
+            dimension: Axis along which masks were generated ('x','y','z')
+            
+        Returns:
+            bool: Success status
+        """
+        if not self.image:
+            return False
+            
+        # Get original image shape
+        orig_shape = self.image.shape[:3]
+        
+        # Create empty 4D array matching image dimensions
+        # Adding 4th dimension for potential multiple labels
+        mask_data = np.zeros((*orig_shape, 1), dtype=np.float32)
+        
+        # Fill the volume with mask data
+        for key, mask in masks.items():
+            dim, idx = key.split('_')
+            idx = int(idx)
+
+            mask = np.squeeze(mask)
+
+            # Rotate mask by -90 degrees before inserting
+            rotated_mask = np.rot90(mask, k=-1)
+            
+            if dimension == 'z':
+                mask_data[:, :, idx, 0] = rotated_mask
+            elif dimension == 'y':
+                mask_data[:, idx, :, 0] = rotated_mask
+            elif dimension == 'x':
+                mask_data[idx, :, :, 0] = rotated_mask
+                
+        # Create new FileLoader instance
+        self.mask_loader = FileLoader()
+        self.mask_loader.nii_data = mask_data
+        self.mask = Nifti(mask_data, modalities=[0])
+        
+        return True

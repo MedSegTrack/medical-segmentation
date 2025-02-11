@@ -653,16 +653,22 @@ class GuiController:
 
                 # Update GUI with results
                 if all_masks:
-                    #TODO: Update GUI with new mask
-                    for id, mask in all_masks.items():
-                        from PIL import Image
-                        output_dir = "output/"
-                        os.makedirs(output_dir, exist_ok=True)
-                        mask_2d = mask[0, :, :] if len(mask.shape) == 3 else mask 
-                        mask_normalized = (mask_2d * 255).astype(np.uint8)
-                        output_mask = Image.fromarray(mask_normalized)
-                        output_mask.save(f"{output_dir}/{id}.png")
-                    pass
+                    #for id, mask in all_masks.items():
+                    #    from PIL import Image
+                    #    output_dir = "output/"
+                    #    os.makedirs(output_dir, exist_ok=True)
+                    #    mask_2d = mask[0, :, :] if len(mask.shape) == 3 else mask 
+                    #    mask_normalized = (mask_2d * 255).astype(np.uint8)
+                    #    output_mask = Image.fromarray(mask_normalized)
+                    #    output_mask.save(f"{output_dir}/{id}.png")
+
+                    self.find_mask_channels()
+
+                    self.show_mask = [False] * self.mask_channels
+                    self.show_mask[1] = True
+                    self.update_mask_menu()
+                    self.update_panels()
+                    self.update_3d_view()
                 else:
                     self.view.display_error("No masks generated")
 
