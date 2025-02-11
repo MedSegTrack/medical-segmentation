@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QAction, QActionGroup, QListWidgetItem
+from PyQt5.QtWidgets import QAction, QActionGroup, QListWidgetItem, QProgressDialog
 from PyQt5.QtCore import Qt, QEvent
 from gui.view import MAIN_SPLITTER_SIZES, LEFT_SPLITTER_SIZES, RIGHT_SPLITTER_SIZES
 from gui.filepopup import LoadFileDialog
@@ -7,6 +7,8 @@ import vedo
 from functools import partial
 
 from segmentation.segmentationController import SegmentationController
+from .segmentation_worker import SegmentationWorker
+
 import os
 
 import numpy as np
@@ -637,47 +639,85 @@ class GuiController:
             return
 
         try:
-                    
             # Group selections by slice
             grouped_selections = self._group_selections()
             if not grouped_selections:
                 self.view.display_error("No valid selections found")
                 return
 
-            try:
-                # Run segmentation with image directory and grouped selections
-                all_masks = self.segmentation_controller.run_segmentation(
-                    points_by_slice=grouped_selections,
-                    dimension='z'
-                )
+            # Create progress dialog
+            self._progress_dialog = QProgressDialog("Preparing for segmentation...", None, 0, 100, self.view)
+            self._progress_dialog.setWindowModality(Qt.WindowModal)
+            self._progress_dialog.setAutoClose(True)
+            self._progress_dialog.setMinimumDuration(0)
+            
+            # Connect cancel button
+            self._progress_dialog.canceled.connect(self._cancel_segmentation)
+            
 
-                # Update GUI with results
-                if all_masks:
-                    #for id, mask in all_masks.items():
-                    #    from PIL import Image
-                    #    output_dir = "output/"
-                    #    os.makedirs(output_dir, exist_ok=True)
-                    #    mask_2d = mask[0, :, :] if len(mask.shape) == 3 else mask 
-                    #    mask_normalized = (mask_2d * 255).astype(np.uint8)
-                    #    output_mask = Image.fromarray(mask_normalized)
-                    #    output_mask.save(f"{output_dir}/{id}.png")
+            # Create and configure worker
+            self.segmentation_worker = SegmentationWorker(
+                self.segmentation_controller,
+                grouped_selections,
+                'z'
+            )
 
-                    self.find_mask_channels()
+            # Connect signals
+            self.segmentation_worker.finished.connect(
+                lambda masks: self._handle_segmentation_complete(masks, self._progress_dialog)
+            )
+            self.segmentation_worker.progress.connect(self._progress_dialog.setValue)
+            self.segmentation_worker.status.connect(self._progress_dialog.setLabelText)  # Connect status updates
+            self.segmentation_worker.error.connect(
+                lambda err: self._handle_segmentation_error(err, self._progress_dialog)
+            )
 
-                    self.show_mask = [False] * self.mask_channels
-                    self.show_mask[1] = True
-                    self.update_mask_menu()
-                    self.update_panels()
-                    self.update_3d_view()
-                else:
-                    self.view.display_error("No masks generated")
+            self._progress_dialog.show()
+            # Start worker
+            self.segmentation_worker.start()    
 
-            except Exception as e:
-                self.view.display_error(f"Segmentation failed: {str(e)}")
+        except Exception as e:
+            self.view.display_error(f"Failed to start segmentation: {str(e)}")
 
-        finally:
-            #TODO: Cleanup temporary files
-            pass
+    def _cancel_segmentation(self):
+        """Cancel ongoing segmentation."""
+        try:
+            # Cancel the segmentation in the controller
+            if self.segmentation_controller:
+                self.segmentation_controller.cancel_segmentation()
+            
+            # Stop and clean up the worker
+            if hasattr(self, 'segmentation_worker') and self.segmentation_worker is not None:
+                self.segmentation_worker.quit()
+                self.segmentation_worker.wait()  # Wait for the thread to finish
+                self.segmentation_worker = None
+            
+            # Close the progress dialog
+            if hasattr(self, '_progress_dialog') and self._progress_dialog is not None:
+                self._progress_dialog.close()  # Use close() instead of hide()
+                self._progress_dialog = None
+                
+        except Exception as e:
+            print(f"Error during cancellation: {e}")
+
+    def _handle_segmentation_complete(self, masks, progress):
+        """Handle completion of segmentation."""
+        progress.close()
+        
+        if masks:
+            self.find_mask_channels()
+            self.show_mask = [False] * self.mask_channels
+            self.show_mask[1] = True
+            self.update_mask_menu()
+            self.update_panels()
+            self.update_3d_view()
+        else:
+            self.view.display_error("No masks generated")
+
+    def _handle_segmentation_error(self, error_msg, progress):
+        """Handle segmentation error."""
+        progress.close()
+        self.view.display_error(f"Segmentation failed: {error_msg}")
 
     def _group_selections(self):
         """Group selection points by slice index.

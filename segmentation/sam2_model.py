@@ -102,28 +102,35 @@ class Sam2Model(SegmentationModelInterface):
             labels=labels,
         )
 
-    def propagate(self, direction: str = "forward") -> Dict[int, np.ndarray]:
+    def propagate(self, direction: str = "forward", progress_callback=None) -> Dict[int, np.ndarray]:
         """Propagate segmentation from current state through video frames.
         
         Args:
             direction (str): Propagation direction ("forward" or "backward")
+            progress_callback (callable): Callback for progress updates
             
         Returns:
             Dict[int, np.ndarray]: Mapping of frame indices to mask arrays
-            
-        Raises:
-            RuntimeError: If model or inference state not initialized
         """
         if self.predictor is None or self.inference_state is None:
             raise RuntimeError("Model not initialized or no inference state")
 
         masks: Dict[int, np.ndarray] = {}
         is_reverse = direction == "backward"
-
+        
+        # Get current frame and total frames
+        total_frames = len(self.inference_state['images'])
+        processed = 0
+        
         for frame_idx, out_obj_ids, out_mask_logits in self.predictor.propagate_in_video(
             self.inference_state, 
             reverse=is_reverse 
         ):  
+            processed += 1
+            if progress_callback:
+                progress = int((processed / total_frames) * 100)
+                progress_callback(progress)
+                
             for obj_id, mask_logits in zip(out_obj_ids, out_mask_logits):
                 mask = (mask_logits > 0.0).cpu().numpy()
                 masks[frame_idx] = mask

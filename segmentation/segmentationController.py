@@ -38,6 +38,7 @@ class SegmentationController:
         self.checkpoint_path = self.config['checkpoint_path']
         self.current_masks: Dict[str, np.ndarray] = {}
         self.is_initialized = False
+        self._is_cancelled = False
 
     def initialize_model(self, 
                         checkpoint_path: Optional[str] = None, 
@@ -73,41 +74,49 @@ class SegmentationController:
     def run_segmentation(self, 
                         points_by_slice: PointsBySliceType,
                         dimension: str) -> Dict[str, np.ndarray]:
-        """Run segmentation process on specified axis with given points.
-        
-        Args:
-            points_by_slice: Dictionary mapping slice indices to lists of point information
-                Each point info is (x, y, label) where label is "P" for positive
-            dimension: Current dimension for result storage
-                
-        Returns:
-            Dict mapping "dimension_index" to mask arrays
-            
-        Raises:
-            RuntimeError: If model not initialized
-        """
+        """Run segmentation process on specified axis with given points."""
         if not self.is_initialized or self.model is None:
             raise RuntimeError("Model not initialized")
 
+        self._is_cancelled = False
+        
         try:
             scans_directory = self.data_manager.prepare_for_segmentation(dimension)
             self.model.set_state(scans_directory)
 
-            # Process points for each slice
+            # Process points for each slice without progress updates
             for slice_idx, points_info in points_by_slice.items():
+                if self._is_cancelled:
+                    return {}
+
+                self.status_callback(f"Adding prompt for slice {slice_idx}...")
+
                 points = np.array([[x, y] for x, y, _ in points_info], dtype=np.float32)
                 labels = np.array([1 if label == "P" else 0 for _, _, label in points_info], 
                                 dtype=np.int32)
 
-                print(f"Adding prompt from slice: {dimension}:{slice_idx}")
-                print(f"Points: {points}")
-                print(f"Labels: {labels}")
-
                 self.model.add_prompt(slice_idx, points, labels)
                 
-            # Run bi-directional propagation
-            forward_masks = self.model.propagate("forward")
-            backward_masks = self.model.propagate("backward")
+            # Run forward propagation (0-50%)
+            if hasattr(self, 'status_callback'):
+                self.status_callback("Running forward propagation...")
+            forward_masks = self.model.propagate(
+                "forward",
+                progress_callback=lambda p: self.progress_callback(int(p))  # 0-50%
+            )
+            if self._is_cancelled:
+                return {}
+        
+
+            # Run backward propagation (50-100%)
+            if hasattr(self, 'status_callback'):
+                self.status_callback("Running backward propagation...")
+            backward_masks = self.model.propagate(
+                "backward",
+                progress_callback=lambda p: self.progress_callback(50 + int(p))  # 50-100%
+            )
+            if self._is_cancelled:
+                return {}
             
             # Merge and store results
             for idx, mask in {**forward_masks, **backward_masks}.items():
@@ -155,3 +164,7 @@ class SegmentationController:
         """
         if self.model:
             self.model.set_state(state)
+
+    def cancel_segmentation(self):
+        """Cancel ongoing segmentation process."""
+        self._is_cancelled = True
