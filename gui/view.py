@@ -1,13 +1,15 @@
-import sys
 from PyQt5.QtWidgets import (
     QLabel, QMainWindow, QWidget, QVBoxLayout, QSplitter, QMessageBox, QPushButton, QHBoxLayout, QAction, QCheckBox, QSlider, QListWidget
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPalette, QColor
+from PyQt5.QtCore import QObject, QEvent
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from gui.guistyles import LIGHT_MODE_STYLES, DARK_MODE_STYLES
-
+import numpy as np
+from vedo import Plotter
+from vtkmodules.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 # Constants
 WINDOW_TITLE = "Medical Segmentation"
 WINDOW_WIDTH = 800
@@ -73,7 +75,7 @@ class GuiView(QMainWindow):
         self.panel1 = self.create_plot_panel("X-Slice")
         self.panel4 = self.create_plot_panel("Z-Slice")
         self.panel2 = self.create_plot_panel("Y-Slice")
-        self.panel3 = self.create_plot_panel("3D View")
+        self.panel3 = self.create_vedo_panel()
 
 
         self.side_options = QWidget()
@@ -132,6 +134,13 @@ class GuiView(QMainWindow):
         self.list_view = QListWidget()
         self.side_options_layout.addWidget(self.list_view)
 
+        self.run_segmentation_button = QPushButton("Run segmentation")
+        self.side_options_layout.addWidget(self.run_segmentation_button)
+
+        self.analyze_mask_button = QPushButton("Analyze Mask")
+        self.analyze_mask_button.setVisible(False)
+        self.side_options_layout.addWidget(self.analyze_mask_button)
+
         self.side_options_layout.addStretch()
 
         self.left_splitter.addWidget(self.panel1)
@@ -174,43 +183,55 @@ class GuiView(QMainWindow):
             mask_data (np.ndarray, optional): The mask data to overlay. Defaults to None.
             selection_list (list, optional): The list of selected points. Defaults to None.
         """
-        canvas = panel
-        # Clear panel text
-        canvas.figure.texts = [canvas.figure.texts[0]]
-        panel.figure.text(0.95, 0.05, f"Slice: {slice_index}", color="white", fontsize=12, ha='right', va='bottom')
+        fig = panel.figure
 
-        ax = canvas.figure.gca()
+        # Clear all but the first text and add the slice index label.
+        if fig.texts:
+            fig.texts = [fig.texts[0]]
+        fig.text(0.95, 0.05, f"Slice: {slice_index}",
+                color="white", fontsize=12, ha="right", va="bottom")
+
+        ax = fig.gca()
         ax.clear()
 
-        # Display the slice data if it is not None
         if slice_data is not None:
-            # Set the extent to match the pixel dimensions of the slice
-            height, width = slice_data.shape
+            # Determine the extent of the image.
+            width, height = slice_data.shape
             extent = (0, width, height, 0)
-            # Display the slice
-            ax.imshow(slice_data, cmap="gray", aspect='equal', extent=extent)
+            
+            # Display the slice image (rotated 90°).
+            img = np.rot90(slice_data.get_image_as_array(), k=1)
+            ax.imshow(img, cmap="gray", aspect="equal", extent=extent)
 
-            # Overlay the mask, if provided
+            # Overlay the mask if provided.
             if mask_data is not None:
-                ax.imshow(mask_data, alpha=0.4, aspect='equal', extent=extent)
+                ax.imshow(np.rot90(mask_data, k=1), alpha=0.4, aspect="equal", extent=extent)
 
-            # Overlay the selected points, if any
-            if selection_list is not None:
-                for dimension, slice_number, x, y, t, in selection_list:
-                    if (panel == self.panel1 and dimension == "x") or \
-                    (panel == self.panel2 and dimension == "y") or \
-                    (panel == self.panel4 and dimension == "z"):
-                        if slice_number == slice_index:
-                            if t == "P":
-                                ax.plot(x, height-y, 'go')
-                            else:
-                                ax.plot(x, height-y, 'ro')
+            # Define a mapping for converting voxel coordinates based on the panel.
+            mapping = None
+            if panel == self.panel1:
+                mapping = lambda v: (v.y, v.z, v.x)
+            elif panel == self.panel2:
+                mapping = lambda v: (v.x, v.z, v.y)
+            elif panel == self.panel4:
+                mapping = lambda v: (v.x, v.y, v.z)
+
+            # Overlay the selected points if provided.
+            if selection_list is not None and mapping is not None:
+                for voxel, t in selection_list:
+                    x, y, z = mapping(voxel)
+                    if z == slice_index:
+                        marker = "go" if t == "P" else "ro"
+                        # Plot the point, adjusting y-coordinate so the image is not upside-down.
+                        ax.plot(x, height - y, marker)
         else:
-            # Display "No Data" message if slice_data is None
-            ax.text(0.5, 0.5, 'No Data', color='red', fontsize=20, ha='center', va='center')
+            # Show a "No Data" message when slice_data is None.
+            ax.text(0.5, 0.5, "No Data", color="red", fontsize=20,
+                    ha="center", va="center")
 
         ax.axis("off")
-        canvas.draw()
+        panel.draw()
+
 
     def display_error(self, message):
         """
@@ -237,6 +258,8 @@ class GuiView(QMainWindow):
         self.side_options.setStyleSheet("background-color: #f0f0f0; color: black;")
         self.reset_layers_button.setStyleSheet(LIGHT_MODE_STYLES["BUTTON_STYLE"])
         self.reset_selection_button.setStyleSheet(LIGHT_MODE_STYLES["BUTTON_STYLE"])
+        self.run_segmentation_button.setStyleSheet(LIGHT_MODE_STYLES["BUTTON_STYLE"])
+        self.analyze_mask_button.setStyleSheet(LIGHT_MODE_STYLES["BUTTON_STYLE"])
 
     def apply_dark_mode(self):
         """
@@ -254,6 +277,8 @@ class GuiView(QMainWindow):
         self.side_options.setStyleSheet("background-color: #353535; color: white;")
         self.reset_layers_button.setStyleSheet(DARK_MODE_STYLES["BUTTON_STYLE"])
         self.reset_selection_button.setStyleSheet(DARK_MODE_STYLES["BUTTON_STYLE"])
+        self.run_segmentation_button.setStyleSheet(LIGHT_MODE_STYLES["BUTTON_STYLE"])
+        self.analyze_mask_button.setStyleSheet(DARK_MODE_STYLES["BUTTON_STYLE"])
 
     def apply_palette(self, palette_config):
         """
@@ -266,4 +291,29 @@ class GuiView(QMainWindow):
         for role, color in palette_config.items():
             palette.setColor(getattr(QPalette, role), QColor(*color))
         self.setPalette(palette)
+
+    def create_vedo_panel(self):
+        """
+        Create a vedo 3D plot panel.
+        """
+        panel = QWidget()
+        panel.setStyleSheet("border: 10px solid black;")  # Apply black border
+        layout = QVBoxLayout()
+        panel.setLayout(layout)
+        # Create a QVTKRenderWindowInteractor
+        self.vtk_widget = QVTKRenderWindowInteractor(parent=panel)
+        layout.addWidget(self.vtk_widget)
+
+        # Initialize the vedo Plotter
+        self.vedo_plotter = Plotter(qt_widget=self.vtk_widget, sharecam=True)
+        self.vedo_plotter.show(axes=None, interactive=False, bg="black", title="3D View")  # Blank plot
+
+        return panel
+    
+    def get_vedo_plotter(self):
+        """
+        Return the vedo Plotter instance.
+        """
+        return self.vedo_plotter
+
 
