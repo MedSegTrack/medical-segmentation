@@ -665,7 +665,8 @@ class GuiController:
             self.segmentation_worker = SegmentationWorker(
                 self.segmentation_controller,
                 grouped_selections,
-                'z'
+                'z',
+                self.current_modality_channel
             )
 
             # Connect signals

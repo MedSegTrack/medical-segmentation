@@ -6,11 +6,12 @@ class SegmentationWorker(QThread):
     status = pyqtSignal(str)
     error = pyqtSignal(str)
     
-    def __init__(self, segmentation_controller, points_by_slice, dimension):
+    def __init__(self, segmentation_controller, points_by_slice, dimension, modality):
         super().__init__()
         self.segmentation_controller = segmentation_controller
         self.points_by_slice = points_by_slice
         self.dimension = dimension
+        self.modality = modality
         self._is_cancelled = False
         
     def run(self):
@@ -21,7 +22,8 @@ class SegmentationWorker(QThread):
             
             masks = self.segmentation_controller.run_segmentation(
                 points_by_slice=self.points_by_slice,
-                dimension=self.dimension
+                dimension=self.dimension,
+                modality=self.modality
             )
             
             if self._is_cancelled:

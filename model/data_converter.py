@@ -8,13 +8,14 @@ class NiftiToImageConverter:
     def __init__(self, target_shape=(240, 240)):
         self.target_shape = target_shape
         
-    def convert_volume(self, data: np.ndarray, output_dir: str, axis: str = 'z') -> str:
+    def convert_volume(self, data: np.ndarray, output_dir: str, axis: str = 'z', modality: int = 0) -> str:
         """Convert volume data to image sequence along specified axis.
         
         Args:
             data: Volume data (3D or 4D array)
             output_dir: Directory to save images
             axis: Axis along which to slice ('x', 'y', or 'z')
+            modality: Index of modality to use (default: 0)
             
         Returns:
             str: Path to directory containing image sequence
@@ -23,14 +24,18 @@ class NiftiToImageConverter:
         
         # Handle 4D data (multiple modalities)
         if data.ndim == 4:
-            data = data[..., 0]  # Take first modality by default
+            if modality >= data.shape[-1]:
+                raise ValueError(f"Invalid modality index {modality}. Max available: {data.shape[-1]-1}")
+            volume_data = data[..., modality]
+        else:
+            volume_data = data
             
         if axis == 'z':
-            slices = [data[:, :, i] for i in range(data.shape[2])]
+            slices = [volume_data[:, :, i] for i in range(volume_data.shape[2])]
         elif axis == 'y':
-            slices = [data[:, i, :] for i in range(data.shape[1])]
+            slices = [volume_data[:, i, :] for i in range(volume_data.shape[1])]
         elif axis == 'x':
-            slices = [data[i, :, :] for i in range(data.shape[0])]
+            slices = [volume_data[i, :, :] for i in range(volume_data.shape[0])]
             
         # Save each slice as image
         for idx, slice_data in enumerate(slices):

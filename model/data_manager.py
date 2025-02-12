@@ -123,21 +123,35 @@ class DataManager:
                 print(f"Error saving mask: {e}")
         return False
 
-    def prepare_for_segmentation(self, axis: str = 'z') -> Optional[str]:
-        """Convert volume data for segmentation."""
+    def prepare_for_segmentation(self, axis: str = 'z', modality: int = 0) -> Optional[str]:
+        """Convert volume data for segmentation.
+        
+        Args:
+            axis: Axis to slice along ('x', 'y', 'z')
+            modality: Index of modality to use (default: 0)
+            
+        Returns:
+            Optional[str]: Path to converted images directory or None if failed
+        """
         if not self.image_loader:
             return None
             
+        # Verify modality index is valid
+        if modality >= self.image.shape[-1]:
+            print(f"Invalid modality index {modality}. Using default (0)")
+            modality = 0
+            
         output_dir = os.path.join(
             CONFIG['temp_dir'],
-            f"scan_{os.path.basename(self.image_loader.file_path)}_{axis}/"
+            f"scan_{os.path.basename(self.image_loader.file_path)}_{axis}_mod{modality}/"
         )
         
         try:
             path = self.converter.convert_volume(
                 self.image_loader.nii_data,
                 output_dir,
-                axis
+                axis,
+                modality=modality
             )
             self.converted_paths[axis] = path
             return path

@@ -73,7 +73,8 @@ class SegmentationController:
 
     def run_segmentation(self, 
                         points_by_slice: PointsBySliceType,
-                        dimension: str) -> Dict[str, np.ndarray]:
+                        dimension: str,
+                        modality: int) -> Dict[str, np.ndarray]:
         """Run segmentation process on specified axis with given points."""
         if not self.is_initialized or self.model is None:
             raise RuntimeError("Model not initialized")
@@ -81,7 +82,7 @@ class SegmentationController:
         self._is_cancelled = False
         
         try:
-            scans_directory = self.data_manager.prepare_for_segmentation(dimension)
+            scans_directory = self.data_manager.prepare_for_segmentation(dimension, modality)
             self.model.set_state(scans_directory)
 
             # Process points for each slice without progress updates
