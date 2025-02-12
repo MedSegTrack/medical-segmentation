@@ -137,6 +137,10 @@ class GuiView(QMainWindow):
         self.run_segmentation_button = QPushButton("Run segmentation")
         self.side_options_layout.addWidget(self.run_segmentation_button)
 
+        self.analyze_mask_button = QPushButton("Analyze Mask")
+        self.analyze_mask_button.setVisible(False)
+        self.side_options_layout.addWidget(self.analyze_mask_button)
+
         self.side_options_layout.addStretch()
 
         self.left_splitter.addWidget(self.panel1)
@@ -255,6 +259,7 @@ class GuiView(QMainWindow):
         self.reset_layers_button.setStyleSheet(LIGHT_MODE_STYLES["BUTTON_STYLE"])
         self.reset_selection_button.setStyleSheet(LIGHT_MODE_STYLES["BUTTON_STYLE"])
         self.run_segmentation_button.setStyleSheet(LIGHT_MODE_STYLES["BUTTON_STYLE"])
+        self.analyze_mask_button.setStyleSheet(LIGHT_MODE_STYLES["BUTTON_STYLE"])
 
     def apply_dark_mode(self):
         """
@@ -273,6 +278,7 @@ class GuiView(QMainWindow):
         self.reset_layers_button.setStyleSheet(DARK_MODE_STYLES["BUTTON_STYLE"])
         self.reset_selection_button.setStyleSheet(DARK_MODE_STYLES["BUTTON_STYLE"])
         self.run_segmentation_button.setStyleSheet(LIGHT_MODE_STYLES["BUTTON_STYLE"])
+        self.analyze_mask_button.setStyleSheet(DARK_MODE_STYLES["BUTTON_STYLE"])
 
     def apply_palette(self, palette_config):
         """

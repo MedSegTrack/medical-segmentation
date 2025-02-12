@@ -5,6 +5,7 @@ from model.file_loader import FileLoader
 from model.nifti import Nifti
 from config import CONFIG
 from .data_converter import NiftiToImageConverter
+from .data_analyzer import DataAnalyzer
 
 class DataManager:
     """Manages data access and file handlers for the application."""
@@ -16,6 +17,7 @@ class DataManager:
         self.mask = None
         self.converted_paths: Dict[str, str] = {}
         self.converter = NiftiToImageConverter()
+        self.analyzer = DataAnalyzer(self)
 
     def load_image(self, file_path):
         """Load a NIfTI image file.
@@ -186,3 +188,15 @@ class DataManager:
         self.mask = Nifti(mask_data, modalities=[0])
         
         return True
+
+    def analyze_current_mask(self) -> Dict[str, str]:
+        """Analyze current mask and return formatted results.
+        
+        Returns:
+            Dict[str, str]: Formatted analysis results or empty dict if no mask
+        """
+        if not self.mask:
+            return {}
+            
+        self.analyzer.analyze_mask()
+        return self.analyzer.get_formatted_results()

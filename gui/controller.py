@@ -8,6 +8,7 @@ from functools import partial
 
 from segmentation.segmentationController import SegmentationController
 from .segmentation_worker import SegmentationWorker
+from gui.analysis_dialog import AnalysisDialog
 
 import os
 
@@ -76,6 +77,7 @@ class GuiController:
         self.view.list_view.itemClicked.connect(self.on_list_item_selected)
 
         self.view.run_segmentation_button.clicked.connect(self.start_segmentation)
+        self.view.analyze_mask_button.clicked.connect(self.show_mask_analysis)
 
     def _connect_panel_events(self):
         """Connect panel-specific mouse and wheel events."""
@@ -442,6 +444,9 @@ class GuiController:
         self.view.mask_group.addAction(all_action)
         self.view.mask_menu.addAction(all_action)
 
+        has_visible_mask = any(self.show_mask)
+        self.view.analyze_mask_button.setVisible(has_visible_mask)
+
         for i in range(1, self.mask_channels):
             action = QAction(str(i), self.view)
             action.setCheckable(True)
@@ -739,3 +744,16 @@ class GuiController:
             )
         
         return grouped
+
+    def show_mask_analysis(self):
+        """Show analysis results for current mask."""
+        if not any(self.show_mask):
+            return
+            
+        results = self.data_manager.analyze_current_mask()
+        if results:
+            dialog = AnalysisDialog(
+                results, 
+                dark_mode=self.view.dark_mode_action.isChecked()
+            )
+            dialog.exec_()
