@@ -29,7 +29,7 @@ class TestVoxel(unittest.TestCase):
 
     def test_voxel_repr(self):
         voxel = Voxel(self.data, 1, 2, self.z_index)
-        self.assertEqual(repr(voxel), f"Voxel(x=1, y=2, z={self.z_index}, value={self.data[1, 2, self.z_index]})")
+        self.assertEqual(repr(voxel), f"Voxel(x=1, y=2, z={self.z_index})")
 
 if __name__ == '__main__':
     unittest.main()

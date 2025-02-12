@@ -186,6 +186,7 @@ class DataManager:
         self.mask_loader = FileLoader()
         self.mask_loader.nii_data = mask_data
         self.mask = Nifti(mask_data, modalities=[0])
+        self.mask_loader.nifti = self.mask
         
         return True
 

@@ -78,6 +78,7 @@ class GuiController:
 
         self.view.run_segmentation_button.clicked.connect(self.start_segmentation)
         self.view.analyze_mask_button.clicked.connect(self.show_mask_analysis)
+        self.view.save_action.triggered.connect(self.save_files)
 
     def _connect_panel_events(self):
         """Connect panel-specific mouse and wheel events."""
@@ -757,3 +758,37 @@ class GuiController:
                 dark_mode=self.view.dark_mode_action.isChecked()
             )
             dialog.exec_()
+
+    def save_files(self):
+        """Save current image and mask files."""
+        from PyQt5.QtWidgets import QFileDialog
+        
+        try:
+            # Save image if loaded
+            if self.data_manager.image_loader:
+                file_path, _ = QFileDialog.getSaveFileName(
+                    self.view,
+                    "Save Image File",
+                    "",
+                    "NIfTI Files (*.nii *.nii.gz)"
+                )
+                if file_path:
+                    if not self.data_manager.save_image(file_path):
+                        self.view.display_error("Failed to save image file")
+                        return
+            
+            # Save mask if loaded
+            if self.data_manager.mask_loader:
+                file_path, _ = QFileDialog.getSaveFileName(
+                    self.view,
+                    "Save Mask File",
+                    "",
+                    "NIfTI Files (*.nii *.nii.gz)"
+                )
+                if file_path:
+                    if not self.data_manager.save_mask(file_path):
+                        self.view.display_error("Failed to save mask file")
+                        return
+                        
+        except Exception as e:
+            self.view.display_error(f"Error saving files: {str(e)}")
