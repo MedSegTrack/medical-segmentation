@@ -346,6 +346,11 @@ class GuiController:
                     self.data_manager.load_mask(dialog.mask_path)
                     self.find_mask_channels()
                     self.update_mask_menu()
+                #make sure to unload the mask if checkbox is not checked
+                else:
+                    self.data_manager.unload_mask()
+                    self.find_mask_channels() #unintialize mask variables
+                    self.view.mask_menu.setEnabled(False) #disable mask menu
                 
                 self.current_slice = {"x": self.data_manager.get_image_data().shape[0] // 2, "y": self.data_manager.get_image_data().shape[1] // 2, "z": self.data_manager.get_image_data().shape[2] // 2}
                 self.update_panels()
@@ -525,8 +530,14 @@ class GuiController:
 
     def find_mask_channels(self):
         """
-        Find the number of channels in the mask data.
+        Find the number of channels in the mask data. If no mask is loaded, uninitialize the mask-related variables.
         """
+        if self.data_manager.mask is None:
+            self.mask_channels = 0
+            self.show_mask = []
+            print("No mask loaded. Mask-related variables uninitialized.")
+            return
+
         unique_values = np.unique(self.data_manager.get_mask_data().data.astype(int))
         self.mask_channels = len(unique_values)
         self.show_mask = [False] * self.mask_channels

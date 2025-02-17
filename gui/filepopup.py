@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QCheckBox, QPushButton, QLabel, QFileDialog
 from PyQt5.QtGui import QPalette, QColor
 from gui.guistyles import LIGHT_MODE_STYLES, DARK_MODE_STYLES
+import os
 
 class LoadFileDialog(QDialog):
     """
@@ -61,11 +62,27 @@ class LoadFileDialog(QDialog):
             self.nifti_path = file_path
             self.checkbox.setCheckable(True)
 
-    def load_mask_file(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Select Nifti Mask File", "", "Nifti Files (*.nii *.nii.gz)")
+            # Try to find the mask in the labels folder
+            mask_path = self.get_mask_path(file_path)
+            if os.path.exists(mask_path):
+                self.load_mask_file(mask_path)
+                self.checkbox.setChecked(True)
+                self.load_mask_button.setEnabled(True)
+
+    def load_mask_file(self, file_path=False):
+        if not file_path:
+            file_path, _ = QFileDialog.getOpenFileName(self, "Select Nifti Mask File", "",
+                                                       "Nifti Files (*.nii *.nii.gz)")
         if file_path:
             self.mask_label.setText(file_path)
             self.mask_path = file_path
+
+
+    def get_mask_path(self, nifti_path):
+        folder = os.path.dirname(nifti_path)
+        filename = os.path.basename(nifti_path)
+        mask_folder = os.path.join(os.path.dirname(folder), "labels")
+        return os.path.join(mask_folder, filename)
 
     def apply_light_mode(self):
         """

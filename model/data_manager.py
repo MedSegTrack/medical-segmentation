@@ -51,6 +51,13 @@ class DataManager:
             print(f"Error loading mask: {e}")
             return False
 
+    def unload_mask(self):
+        try:
+            self.mask = None
+            self.mask_loader = None
+        except Exception as e:
+            print(f"Error unloading mask: {e}")
+
     def get_image_data(self):
         """Get the current image data.
         
