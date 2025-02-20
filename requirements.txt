@@ -16,7 +16,7 @@ iopath==0.1.10
 ipykernel==6.29.5
 ipython==8.30.0
 jedi==0.19.2
-Jinja2==3.1.4
+Jinja2==3.1.5
 jupyter_client==8.6.3
 jupyter_core==5.7.2
 jupyterlab_widgets==3.0.13
